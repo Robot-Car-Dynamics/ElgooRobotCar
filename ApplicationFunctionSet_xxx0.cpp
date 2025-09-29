@@ -15,6 +15,9 @@
 
 #include "ArduinoJson-v6.11.1.h" //ArduinoJson
 #include "MPU6050_getdata.h"
+#include "MPU6050.h"
+
+extern MPU6050 accelgyro;
 
 #define _is_print 0
 #define _Test_print 0
@@ -137,21 +140,24 @@ void ApplicationFunctionSet::ApplicationFunctionSet_PositionTracking(void)
     
     // Update position at regular intervals
     if (currentTime - lastPositionUpdate >= POSITION_UPDATE_INTERVAL) {
-        // Get acceleration from MPU6050
-        int16_t ax, ay, az;
-        // Using the existing MPU6050 instance
-        // You'll need to get acceleration data from your MPU6050
-        // This is a simplified example - you may need to modify based on your MPU6050 setup
+                // Get acceleration from MPU6050
+        int16_t ax, ay, az, gx, gy, gz;
+        accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
         
         // Calculate time difference in milliseconds
-        int timeDiff = currentTime - lastPositionUpdate;
-        
-        // For demonstration, using a simple acceleration value
-        // In practice, you'd get this from your MPU6050 sensor
-        int accelX = 0; // Replace with actual acceleration reading
-        
+        int timeDiff = currentTime - lastPositionUpdate; //assume the getmotion6() call takes negligible time
         // Update position using Kalman filter
-        posTracker->updatePosition(accelX, timeDiff);
+        
+        // Print all MPU6050 motion values
+        Serial.print("ax="); Serial.print(ax); 
+        Serial.print(" ay="); Serial.print(ay);
+        Serial.print(" az="); Serial.print(az);
+        Serial.print(" gx="); Serial.print(gx);
+        Serial.print(" gy="); Serial.print(gy); 
+        Serial.print(" gz="); Serial.print(gz);
+        Serial.println();
+        
+        posTracker->updatePosition(ax, timeDiff);
         
         lastPositionUpdate = currentTime;
     }

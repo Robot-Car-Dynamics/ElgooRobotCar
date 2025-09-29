@@ -33,7 +33,7 @@ void loop()
   // Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis();
 //by lucas - Keep position tracking functionality
     Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
-    Application_FunctionSet.ReportPosition();
+    // Application_FunctionSet.ReportPosition();
 
   // Temporarily disable command processing to save memory
   // Application_FunctionSet.CMD_ServoControl_xxx0();
