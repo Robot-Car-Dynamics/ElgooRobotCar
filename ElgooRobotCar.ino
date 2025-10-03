@@ -33,8 +33,7 @@ void loop()
   // Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis();
 //by lucas - Keep position tracking functionality
     Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
-    // Application_FunctionSet.ReportPosition();
-
+Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, 0, 100, 1, 150);    // Application_FunctionSet.ReportPosition();
   // Temporarily disable command processing to save memory
   // Application_FunctionSet.CMD_ServoControl_xxx0();
   // Application_FunctionSet.CMD_MotorControl_xxx0();

@@ -12,9 +12,24 @@
 #include <Arduino.h>
 #include "PositionTracking.h"
 
+enum SmartRobotCarMotionControl
+{
+  Forward,       //(1)
+  Backward,      //(2)
+  Left,          //(3)
+  Right,         //(4)
+  LeftForward,   //(5)
+  LeftBackward,  //(6)
+  RightForward,  //(7)
+  RightBackward, //(8)
+  stop_it        //(9)
+};
+
 class ApplicationFunctionSet
 {
 public:
+//moved here by lucas so that we can call it from the main loop
+  void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
   void ApplicationFunctionSet_Init(void);
   void ApplicationFunctionSet_Bootup(void);
   void ApplicationFunctionSet_RGB(void);

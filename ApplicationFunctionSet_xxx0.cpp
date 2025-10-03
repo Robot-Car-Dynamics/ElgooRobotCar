@@ -54,19 +54,6 @@ delay_xxx(uint16_t _ms)
   }
 }
 
-/*Movement Direction Control List*/
-enum SmartRobotCarMotionControl
-{
-  Forward,       //(1)
-  Backward,      //(2)
-  Left,          //(3)
-  Right,         //(4)
-  LeftForward,   //(5)
-  LeftBackward,  //(6)
-  RightForward,  //(7)
-  RightBackward, //(8)
-  stop_it        //(9)
-};               //direction方向:（1）、（2）、 （3）、（4）、（5）、（6）
 
 /*Mode Control List*/
 enum SmartRobotCarFunctionalModel
@@ -206,18 +193,26 @@ static bool ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void)
   Kp：Position error proportional constant（The feedback of improving location resuming status，will be modified according to different mode），improve damping control.
   UpperLimit：Maximum output upper limit control
 */
-static void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit)
+void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit)
 {
   static float Yaw; //Yaw
   static float yaw_So = 0;
   static uint8_t en = 110;
   static unsigned long is_time;
-  if (en != directionRecord || millis() - is_time > 10)
+  // Update yaw reading every 10ms
+  if (millis() - is_time > 10)
   {
-    AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_void, /*speed_A*/ 0,
-                                           /*direction_B*/ direction_void, /*speed_B*/ 0, /*controlED*/ control_enable); //Motor control
     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw);
     is_time = millis();
+    
+    // Reset reference angle if deviation is too large
+    if (abs(Yaw - yaw_So) > 45.0) {
+      yaw_So = Yaw;
+      Serial.println("Reset reference angle due to large deviation");
+    Serial.print("Current Yaw: ");
+    Serial.print(Yaw);
+    Serial.print(" Reference Yaw: ");
+    Serial.println(yaw_So);
   }
   //if (en != directionRecord)
   if (en != directionRecord || Application_FunctionSet.Car_LeaveTheGround == false)
@@ -246,6 +241,10 @@ static void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCa
   }
   if (direction == Forward) //Forward
   {
+    Serial.print("Motor speeds - Left: ");
+    Serial.print(L);
+    Serial.print(" Right: ");
+    Serial.println(R);
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ R,
                                            /*direction_B*/ direction_just, /*speed_B*/ L, /*controlED*/ control_enable);
   }
@@ -254,6 +253,7 @@ static void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCa
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ L,
                                            /*direction_B*/ direction_back, /*speed_B*/ R, /*controlED*/ control_enable);
   }
+}
 }
 /*
   Movement Direction Control:
