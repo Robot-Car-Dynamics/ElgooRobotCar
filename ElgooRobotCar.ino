@@ -8,7 +8,7 @@
  */
 #include <avr/wdt.h>
 #include "ApplicationFunctionSet_xxx0.h"
-
+bool onGround;
 void setup()
 {
   // put your setup code here, to run once:
@@ -23,17 +23,26 @@ void loop()
   Application_FunctionSet.ApplicationFunctionSet_SensorDataUpdate();
   Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
   // Temporarily disable non-essential features to save memory
-  // Application_FunctionSet.ApplicationFunctionSet_RGB();
+  Application_FunctionSet.ApplicationFunctionSet_RGB();
   // Application_FunctionSet.ApplicationFunctionSet_Follow();
   // Application_FunctionSet.ApplicationFunctionSet_Obstacle();
   // Application_FunctionSet.ApplicationFunctionSet_Tracking();
   // Application_FunctionSet.ApplicationFunctionSet_Rocker();
-  Application_FunctionSet.ApplicationFunctionSet_Standby();
+  // Application_FunctionSet.ApplicationFunctionSet_Standby();
   // Application_FunctionSet.ApplicationFunctionSet_IRrecv();
   // Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis();
 //by lucas - Keep position tracking functionality
+ onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
+
     Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
-Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, 0, 100, 1, 150);    // Application_FunctionSet.ReportPosition();
+    if (onGround) {
+      Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, 1, 50, 1, 150);
+      Application_FunctionSet.ReportPosition();
+    }
+    else {
+      Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(stop_it, 0, 0, 1, 150); // Stop the car if it's not on the ground
+      return;
+    }
   // Temporarily disable command processing to save memory
   // Application_FunctionSet.CMD_ServoControl_xxx0();
   // Application_FunctionSet.CMD_MotorControl_xxx0();

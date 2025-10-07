@@ -136,14 +136,6 @@ void ApplicationFunctionSet::ApplicationFunctionSet_PositionTracking(void)
         // Update position using Kalman filter
         
         // Print all MPU6050 motion values
-        Serial.print("ax="); Serial.print(ax); 
-        Serial.print(" ay="); Serial.print(ay);
-        Serial.print(" az="); Serial.print(az);
-        Serial.print(" gx="); Serial.print(gx);
-        Serial.print(" gy="); Serial.print(gy); 
-        Serial.print(" gz="); Serial.print(gz);
-        Serial.println();
-        
         posTracker->updatePosition(ax, timeDiff);
         
         lastPositionUpdate = currentTime;
@@ -169,7 +161,7 @@ void ApplicationFunctionSet::ReportPosition(void)
     }
 }
 /*ITR20001 Check if the car leaves the ground*/
-static bool ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void)
+bool ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void)
 {
   if (AppITR20001.DeviceDriverSet_ITR20001_getAnaloguexxx_R() > Application_FunctionSet.TrackingDetection_V &&
       AppITR20001.DeviceDriverSet_ITR20001_getAnaloguexxx_M() > Application_FunctionSet.TrackingDetection_V &&
@@ -252,6 +244,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   {
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ L,
                                            /*direction_B*/ direction_back, /*speed_B*/ R, /*controlED*/ control_enable);
+  }
+  else if (direction == stop_it) //stop
+  {
+    AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_void, /*speed_A*/ 0,
+                                           /*direction_B*/ direction_void, /*speed_B*/ 0, /*controlED*/ control_enable);
   }
 }
 }

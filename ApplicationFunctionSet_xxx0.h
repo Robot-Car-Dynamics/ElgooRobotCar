@@ -48,6 +48,7 @@ public:
   //added by lucas
   void ApplicationFunctionSet_PositionTracking();
   void ReportPosition();
+  bool ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void);
 
 public: /*CMD*/
   void CMD_UltrasoundModuleStatus_xxx0(uint8_t is_get);
