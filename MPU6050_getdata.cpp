@@ -76,7 +76,7 @@ bool MPU6050_getdata::MPU6050_dveGetEulerAngles(float *Yaw)
   if (fabs(gyroz) < 0.05)                 //Clear instant zero drift signal
   {
     gyroz = 0.00;
-  }
+  }  
   agz += gyroz; //z-axis angular velocity integral
   *Yaw = agz;
   return false;

@@ -128,11 +128,13 @@ void ApplicationFunctionSet::ApplicationFunctionSet_PositionTracking(void)
     // Update position at regular intervals
     if (currentTime - lastPositionUpdate >= POSITION_UPDATE_INTERVAL) {
                 // Get acceleration from MPU6050
-        int16_t ax, ay, az, gx, gy, gz;
-        accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-        
+                int16_t ax, ay, az, gx, gy, gz;
+                accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+                
+                int timeDiff = currentTime - lastPositionUpdate; //assume the getmotion6() call takes negligible time, it should since its i2c and we are just reading the buffer
         // Calculate time difference in milliseconds
-        int timeDiff = currentTime - lastPositionUpdate; //assume the getmotion6() call takes negligible time
+        timeDiff = timeDiff > 0 ? timeDiff : 1; // prevent division by zero
+        timeDiff /= 1000; // convert to seconds
         // Update position using Kalman filter
         
         // Print all MPU6050 motion values
@@ -188,69 +190,112 @@ bool ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLeaveTheGround(
 void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit)
 {
   static float Yaw; //Yaw
-  static float yaw_So = 0;
+  static float yaw_So = 0; // Target heading reference
+  static float initial_Yaw = 0; // Initial heading when starting movement
+  static float integral_error = 0; // Integral of error for I term
+  static float last_error = 0; // Previous error for derivative term
+  static unsigned long last_time = 0;
   static uint8_t en = 110;
-  static unsigned long is_time;
-  // Update yaw reading every 10ms
-  if (millis() - is_time > 10)
-  {
-    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw);
-    is_time = millis();
-    
-    // Reset reference angle if deviation is too large
-    if (abs(Yaw - yaw_So) > 45.0) {
-      yaw_So = Yaw;
-      Serial.println("Reset reference angle due to large deviation");
-    Serial.print("Current Yaw: ");
-    Serial.print(Yaw);
-    Serial.print(" Reference Yaw: ");
-    Serial.println(yaw_So);
-  }
-  //if (en != directionRecord)
+  static uint8_t last_direction = 255; // Track last direction
+  
+  // Get current time for dt calculation
+  unsigned long current_time = millis();
+  float dt = (current_time - last_time) / 1000.0; // Convert to seconds
+  last_time = current_time;
+  
+  // Update yaw reading
+  AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw);
+  
+  // Reset conditions - only when changing direction or returning to ground
   if (en != directionRecord || Application_FunctionSet.Car_LeaveTheGround == false)
   {
     en = directionRecord;
-    yaw_So = Yaw;
+    if (last_direction != directionRecord) {  // Only reset reference if direction actually changed
+      initial_Yaw = Yaw;  // Store initial heading
+      yaw_So = Yaw;      // Set target heading
+      integral_error = 0; // Reset integral term
+      last_direction = directionRecord;
+    }
   }
-  //Add proportional constant Kp to increase rebound effect
-  int R = (Yaw - yaw_So) * Kp + speed;
-  if (R > UpperLimit)
-  {
-    R = UpperLimit;
+
+  // Calculate error
+  float error = Yaw - yaw_So;
+  
+  // Normalize error to -180 to +180 range
+  while (error > 180) error -= 360;
+  while (error < -180) error += 360;
+  
+  // Add derivative term for quicker response
+  float error_rate = (error - last_error) / dt;
+  last_error = error;
+  
+  // Anti-windup for integral term with wider window but smaller gain
+  const float max_integral = 15.0;
+  if (abs(error) < 15.0) { // Wider window for smoother integration
+    integral_error += error * dt;
+    integral_error = constrain(integral_error, -max_integral, max_integral);
   }
-  else if (R < 10)
-  {
-    R = 10;
+  
+  // PID control with adjusted gains
+  float Ki = Kp / 12.0; // Further reduced integral gain
+  float Kd = Kp / 16.0; // Small derivative gain for responsiveness
+  float correction = (error * (Kp/1)) + (integral_error * Ki) + (error_rate * Kd);
+  
+  // Calculate base speed and correction factor
+  int base_speed = speed;
+  int correction_value = (int)correction;
+  
+  // Limit the correction to prevent one motor from dominating
+  correction_value = constrain(correction_value, -20, 20); // Reduced maximum correction
+  
+  // Apply correction more gently using proportional distribution
+  int R = base_speed;
+  int L = base_speed;
+  
+  if (correction_value > 0) {
+    // Turning right - slow down right motor more than speeding up left
+    R -= correction_value * 0.7; // Reduce right motor by 70% of correction
+    L += correction_value * 0.3; // Increase left motor by 30% of correction
+  } else {
+    // Turning left - slow down left motor more than speeding up right
+    L -= abs(correction_value) * 0.7; // Reduce left motor by 70% of correction
+    R += abs(correction_value) * 0.3; // Increase right motor by 30% of correction
   }
-  int L = (yaw_So - Yaw) * Kp + speed;
-  if (L > UpperLimit)
-  {
-    L = UpperLimit;
-  }
-  else if (L < 10)
-  {
-    L = 10;
-  }
-  if (direction == Forward) //Forward
+  
+  // Ensure minimum speed and maximum speed with tighter constraints
+  R = constrain(R, base_speed * 0.7, min(UpperLimit, base_speed * 1.3));
+  L = constrain(L, base_speed * 0.7, min(UpperLimit, base_speed * 1.3));
+  
+  // Apply motor speeds based on direction
+  if (direction == Forward)
   {
     Serial.print("Motor speeds - Left: ");
     Serial.print(L);
     Serial.print(" Right: ");
-    Serial.println(R);
+    Serial.print(R);
+    Serial.print(" Yaw: ");
+    Serial.print(Yaw);
+    Serial.print(" Error: ");
+    Serial.println(error);
+    
+    // Left motor is B, Right motor is A
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ R,
-                                           /*direction_B*/ direction_just, /*speed_B*/ L, /*controlED*/ control_enable);
+                                         /*direction_B*/ direction_just, /*speed_B*/ L, 
+                                         /*controlED*/ control_enable);
   }
-  else if (direction == Backward) //Backward
+  else if (direction == Backward)
   {
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ L,
-                                           /*direction_B*/ direction_back, /*speed_B*/ R, /*controlED*/ control_enable);
+                                         /*direction_B*/ direction_back, /*speed_B*/ R,
+                                         /*controlED*/ control_enable);
   }
-  else if (direction == stop_it) //stop
+  else if (direction == stop_it)
   {
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_void, /*speed_A*/ 0,
-                                           /*direction_B*/ direction_void, /*speed_B*/ 0, /*controlED*/ control_enable);
+                                         /*direction_B*/ direction_void, /*speed_B*/ 0,
+                                         /*controlED*/ control_enable);
   }
-}
+
 }
 /*
   Movement Direction Control:

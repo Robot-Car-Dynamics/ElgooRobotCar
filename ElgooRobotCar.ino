@@ -12,13 +12,13 @@ bool onGround;
 void setup()
 {
   // put your setup code here, to run once:
-  Application_FunctionSet.ApplicationFunctionSet_Init();
+  Application_FunctionSet.ApplicationFunctionSet_Init(); // here i start the pos tracking moduel
   wdt_enable(WDTO_2S);
 }
+  int directionRecord = 0;
 
 void loop()
 {
-  //put your main code here, to run repeatedly :
   wdt_reset();
   Application_FunctionSet.ApplicationFunctionSet_SensorDataUpdate();
   Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
@@ -36,11 +36,14 @@ void loop()
 
     Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
     if (onGround) {
-      Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, 1, 50, 1, 150);
+      
+      Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, directionRecord, 50, 12, 150);
+      directionRecord = 1;
       Application_FunctionSet.ReportPosition();
     }
     else {
       Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(stop_it, 0, 0, 1, 150); // Stop the car if it's not on the ground
+      directionRecord = 0;
       return;
     }
   // Temporarily disable command processing to save memory

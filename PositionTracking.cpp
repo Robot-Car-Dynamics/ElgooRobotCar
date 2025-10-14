@@ -1,34 +1,41 @@
 #include "PositionTracking.h"
-#include "Arduino.h" 
+#include "Arduino.h"
+
 void PositionTracking::updatePosition(int accel, int timeDiff) {
     // the following represents updating the model
     // update based on previous state
-    int predictedPositionX = positionX + velocityX * timeDiff;
-    int predictedVelocityX = velocityX;
+    // int predictedPositionX = positionX + velocityX * timeDiff;
+    // int predictedVelocityX = velocityX;
 
-    // update based on measured acceleration
-    predictedPositionX += 0.5 * accel * (timeDiff * timeDiff);
-    predictedVelocityX += accel * timeDiff;
+    // // update based on measured acceleration
+    // predictedPositionX += 0.5 * accel * (timeDiff * timeDiff);
+    // predictedVelocityX += accel * timeDiff;
 
-    // increase uncertainty due to model/process noise
-    posXUncertainty += processNoisePosX;
-    velXUncertainty += processNoiseVelX;
+    // // increase uncertainty due to model/process noise
+    // posXUncertainty += processNoisePosX;
+    // velXUncertainty += processNoiseVelX;
 
-    // calculate kalman gain 
-    float kalmanGain = posXUncertainty / (posXUncertainty + measurementNoise);
+    // // calculate kalman gain 
+    // float kalmanGain = posXUncertainty / (posXUncertainty + measurementNoise);
 
-    // find z using simple noise generation
-    float z = positionX + generateNoise();
+    // // find z using simple noise generation
+    // float z = positionX + generateNoise();
 
-    // correct position
-    positionX = predictedPositionX + kalmanGain * (z - predictedPositionX);
+    // // correct position
+    // positionX = predictedPositionX + kalmanGain * (z - predictedPositionX);
 
-    // correct velocity (indirectly)
-    velocityX = predictedVelocityX + kalmanGain * (z - predictedPositionX) / timeDiff;
+    // // correct velocity (indirectly)
+    // velocityX = predictedVelocityX + kalmanGain * (z - predictedPositionX) / timeDiff;
 
-    // reduce uncertainty after measurement
-    posXUncertainty = (1 - kalmanGain) * posXUncertainty;
-    velXUncertainty = (1 - kalmanGain) * velXUncertainty;
+    // // reduce uncertainty after measurement
+    // posXUncertainty = (1 - kalmanGain) * posXUncertainty;
+    // velXUncertainty = (1 - kalmanGain) * velXUncertainty;
+    float newVelX = this->velocityX+ (accel * timeDiff);
+    float newPosX = this->positionX + (this->velocityX + (0.5 * accel * timeDiff * timeDiff)); // this averages old and new accel in position update
+    
+    this->positionX = newPosX;
+    this->velocityX = newVelX;
+
 }
 
 PositionTracking::PositionTracking(int posx, int velX) {
