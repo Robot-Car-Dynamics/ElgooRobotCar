@@ -1867,6 +1867,56 @@ void ApplicationFunctionSet::ApplicationFunctionSet_IRrecv(void)
     }
   }
 }
+// ---------------- Path action queue (for ESP32 -> Arduino path commands) ----------------
+// Simple, small FIFO for move/turn actions received over Serial framed JSON.
+// Use N=200 for move (D1=direction 1=forward/2=backward, D2=distance_cm)
+// Use N=201 for turn (D1=angle_deg, positive = right/clockwise)
+
+enum PathActionType { PATH_MOVE = 0, PATH_TURN = 1 };
+struct PathAction {
+  uint8_t type; // PathActionType
+  uint8_t dir;  // for move: 1 forward, 2 backward
+  uint16_t distance_cm; // for move
+  int16_t angle_deg;    // for turn
+};
+
+#define PATH_QUEUE_CAPACITY 16
+static PathAction pathQueue[PATH_QUEUE_CAPACITY];
+static uint8_t pathHead = 0; // dequeue index
+static uint8_t pathTail = 0; // enqueue index
+static uint8_t pathCount = 0;
+
+static bool enqueueAction(const PathAction &a)
+{
+  if (pathCount >= PATH_QUEUE_CAPACITY)
+    return false;
+  pathQueue[pathTail] = a;
+  pathTail = (pathTail + 1) % PATH_QUEUE_CAPACITY;
+  pathCount++;
+  return true;
+}
+
+static bool dequeueAction(PathAction &out)
+{
+  if (pathCount == 0)
+    return false;
+  out = pathQueue[pathHead];
+  pathHead = (pathHead + 1) % PATH_QUEUE_CAPACITY;
+  pathCount--;
+  return true;
+}
+
+// Helper to send ack using existing CommandSerialNumber pattern
+static void sendCommandAck()
+{
+  // CommandSerialNumber is a global String declared in the header; print in the repo's style
+  Serial.print("{");
+  Serial.print(CommandSerialNumber);
+  Serial.print("_ok}");
+}
+
+// -----------------------------------------------------------------------------------------
+
 /*Data analysis on serial port*/
 void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
 {
@@ -1985,6 +2035,58 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
 #if _is_print
         Serial.print('{' + CommandSerialNumber + "_ok}");
 #endif
+        break;
+
+      case 200: /*<Command：N 200> : Path move command (D1=dir 1=forward/2=backward, D2=distance_cm) */
+      {
+        PathAction a;
+        a.type = PATH_MOVE;
+        a.dir = (uint8_t)(doc["D1"] | 1);
+        a.distance_cm = (uint16_t)(doc["D2"] | 0);
+        if (!enqueueAction(a))
+        {
+          Serial.print("{\"err\":\"overflow\"}");
+        }
+        else
+        {
+          sendCommandAck();
+        }
+      }
+        break;
+
+      case 201: /*<Command：N 201> : Path turn command (D1=angle_deg) */
+      {
+        PathAction a;
+        a.type = PATH_TURN;
+        a.angle_deg = (int16_t)(doc["D1"] | 0);
+        a.dir = 0;
+        a.distance_cm = 0;
+        if (!enqueueAction(a))
+        {
+          Serial.print("{\"err\":\"overflow\"}");
+        }
+        else
+        {
+          sendCommandAck();
+        }
+      }
+        break;
+
+      case 300: /*<Command：N 300> : Pose query -> reply with JSON {"H":"<id>","pose":{"x":...,"v":...}} */
+      {
+        int position = 0, velocity = 0;
+        if (posTracker) {
+          posTracker->getLocSpe(&position, &velocity);
+        }
+        // reply with a JSON object containing pose
+        Serial.print("{\"H\":\"");
+        Serial.print(CommandSerialNumber);
+        Serial.print("\",\"pose\":{\"x\":");
+        Serial.print(position);
+        Serial.print(",\"v\":");
+        Serial.print(velocity);
+        Serial.print("}}");
+      }
         break;
 
       case 21: /*<Command：N 21>：ultrasonic sensor: detect obstacle distance */
