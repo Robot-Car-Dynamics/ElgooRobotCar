@@ -10,7 +10,7 @@
 #define _ApplicationFunctionSet_xxx0_H_
 
 #include <Arduino.h>
-#include "PositionTracking.h"
+// #include "PositionTracking.h"
 
 enum SmartRobotCarMotionControl
 {
@@ -89,7 +89,7 @@ private:
   boolean TrackingDetectionStatus_R = false;
   boolean TrackingDetectionStatus_M = false;
   boolean TrackingDetectionStatus_L = false;
-      PositionTracking* posTracker; // Add position tracker
+    //   PositionTracking* posTracker; // Add position tracker
     unsigned long lastPositionUpdate;
     unsigned long lastPositionReport;
     static const unsigned long POSITION_UPDATE_INTERVAL = 50; // 50ms

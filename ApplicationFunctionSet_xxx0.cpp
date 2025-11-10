@@ -108,7 +108,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Init(void)
 
   //added by lucas
     // Initialize position tracker (starting at position 0, velocity 0)
-    posTracker = new PositionTracking(0, 0);
+    // posTracker = new PositionTracking(0, 0);
     lastPositionUpdate = millis();
     lastPositionReport = millis();
     
@@ -138,7 +138,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_PositionTracking(void)
         // Update position using Kalman filter
         
         // Print all MPU6050 motion values
-        posTracker->updatePosition(ax, timeDiff);
+        // posTracker->updatePosition(ax, timeDiff);
         
         lastPositionUpdate = currentTime;
     }
@@ -150,8 +150,8 @@ void ApplicationFunctionSet::ReportPosition(void)
     
     // Report position at regular intervals
     if (currentTime - lastPositionReport >= POSITION_REPORT_INTERVAL) {
-        int position, velocity;
-        posTracker->getLocSpe(&position, &velocity);
+        int position = 0, velocity = 0;
+        // posTracker->getLocSpe(&position, &velocity);
         
         Serial.print("Position X: ");
         Serial.print(position);
@@ -1907,11 +1907,14 @@ static bool dequeueAction(PathAction &out)
 }
 
 // Helper to send ack using existing CommandSerialNumber pattern
-static void sendCommandAck()
+static void sendCommandAck(const char *id)
 {
-  // CommandSerialNumber is a global String declared in the header; print in the repo's style
-  Serial.print("{");
-  Serial.print(CommandSerialNumber);
+  // Mirror the command handshake identifier directly back to the ESP32
+  Serial.print('{');
+  if (id != nullptr && id[0] != '\0')
+  {
+    Serial.print(id);
+  }
   Serial.print("_ok}");
 }
 
@@ -2043,13 +2046,20 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         a.type = PATH_MOVE;
         a.dir = (uint8_t)(doc["D1"] | 1);
         a.distance_cm = (uint16_t)(doc["D2"] | 0);
+        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
+        FastLED.show();
+        delay(1000);
+        Serial.println("RECIEVE");
+        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+        FastLED.show();
+        delay(1000);
         if (!enqueueAction(a))
         {
           Serial.print("{\"err\":\"overflow\"}");
         }
         else
         {
-          sendCommandAck();
+          sendCommandAck(CommandSerialNumber.c_str());
         }
       }
         break;
@@ -2061,13 +2071,20 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         a.angle_deg = (int16_t)(doc["D1"] | 0);
         a.dir = 0;
         a.distance_cm = 0;
+        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
+        FastLED.show();
+        delay(1000);
+        Serial.println("RECIEVE");
+        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+        FastLED.show();
+        delay(1000);
         if (!enqueueAction(a))
         {
           Serial.print("{\"err\":\"overflow\"}");
         }
         else
         {
-          sendCommandAck();
+          sendCommandAck(CommandSerialNumber.c_str());
         }
       }
         break;
@@ -2075,10 +2092,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
       case 300: /*<Command：N 300> : Pose query -> reply with JSON {"H":"<id>","pose":{"x":...,"v":...}} */
       {
         int position = 0, velocity = 0;
-        if (posTracker) {
-          posTracker->getLocSpe(&position, &velocity);
-        }
+        //if (posTracker) {
+          //posTracker->getLocSpe(&position, &velocity);
+      //  }
         // reply with a JSON object containing pose
+
         Serial.print("{\"H\":\"");
         Serial.print(CommandSerialNumber);
         Serial.print("\",\"pose\":{\"x\":");
@@ -2086,6 +2104,14 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         Serial.print(",\"v\":");
         Serial.print(velocity);
         Serial.print("}}");
+
+                AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
+        FastLED.show();
+        delay(1000);
+        Serial.println("RECIEVE");
+        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+        FastLED.show();
+        delay(1000);
       }
         break;
 
