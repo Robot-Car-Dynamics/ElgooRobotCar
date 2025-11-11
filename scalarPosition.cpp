@@ -138,7 +138,8 @@ void PositionTracking::updatePosition(float headingDeg, int accel, int dt, float
 }
 
 float PositionTracking::voltageToSpeed(float voltage) {
-    // returns 0.000235 to represent 0.235 meters per second, the approximate speed of the car as measured
+    // returns 0.235 to represent 0.235 meters per second, the approximate speed of the car as measured
+    // This was modified from meters per millisecond after units from accelerometer were corrected
     // may need to increase some, since the car didn't go in a straight line exactly
-    return 0.000235;
+    return 0.235;
 }
