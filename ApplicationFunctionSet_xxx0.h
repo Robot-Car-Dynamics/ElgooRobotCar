@@ -11,6 +11,9 @@
 
 #include <Arduino.h>
 // #include "PositionTracking.h"
+#include "MPU6050_getdata.h"
+#include "MPU6050.h"
+#include "DeviceDriverSet_xxx0.h"
 
 enum SmartRobotCarMotionControl
 {
@@ -141,4 +144,6 @@ private:
   uint8_t CMD_is_FastLED_setBrightness = 20;
 };
 extern ApplicationFunctionSet Application_FunctionSet;
+extern MPU6050_getdata AppMPU6050getdata; // try to make this accessible from outside, for filtering
+extern DeviceDriverSet_Voltage AppVoltage;
 #endif

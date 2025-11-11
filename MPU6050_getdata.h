@@ -9,6 +9,7 @@
 #ifndef _MPU6050_getdata_H_
 #define _MPU6050_getdata_H_
 #include <Arduino.h>
+#include "MPU6050.h"
 class MPU6050_getdata
 {
 public:
@@ -27,4 +28,5 @@ public:
 };
 
 extern MPU6050_getdata MPU6050Getdata;
+extern MPU6050 accelgyro;
 #endif

@@ -44,20 +44,24 @@ float PositionTracking::getVelY() {
     return this->yVelocity;
 }
 
-void PositionTracking::updatePosition(float headingDeg, float accel, int dt, float voltage) {
+void PositionTracking::updatePosition(float headingDeg, int accel, int dt, float voltage) {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
     // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
     // voltage from Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue()
     // accel from accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz) This one seems to be external to Application_FunctionSet.cpp
 
+    // convert accel from LSB to usable meters per second squared
+    float accelmps = motion::lsbToMps(accel);
+
     // make model predictions
     float magVelocity = sqrt(pow(this->xVelocity, 2) + pow(this->yVelocity, 2)); // a^2 = b^2 + c^2
-    magVelocity = magVelocity + (accel * dt); // update with accelerometer info
+    magVelocity = magVelocity + (accelmps * dt); // update with accelerometer info
 
     float newVelX, newVelY, accelX, accelY;
 
     motion::velPerAxis(magVelocity, headingDeg, newVelX, newVelY); // sets newVelX and newVelY to appropriate values based on trig
-    motion::velPerAxis(accel, headingDeg, accelX, accelY); // sets accelX and accelY appropriately
+    // JUST CALL COSINE AND SIN, NO CMATH.H IN ARDUINO
+    motion::velPerAxis(accelmps, headingDeg, accelX, accelY); // sets accelX and accelY appropriately
 
     float newPosX = this->xPosition + (this->xVelocity + (0.5 * accelX * pow(dt, 2))); // this averages old and new accel in position update
     float newPosY = this->yPosition + (this->yVelocity + (0.5 * accelY * pow(dt, 2)));
@@ -134,7 +138,8 @@ void PositionTracking::updatePosition(float headingDeg, float accel, int dt, flo
 }
 
 float PositionTracking::voltageToSpeed(float voltage) {
-    // returns 0.000235 to represent 0.235 meters per second, the approximate speed of the car as measured
+    // returns 0.235 to represent 0.235 meters per second, the approximate speed of the car as measured
+    // This was modified from meters per millisecond after units from accelerometer were corrected
     // may need to increase some, since the car didn't go in a straight line exactly
-    return 0.000235;
+    return 0.235;
 }
