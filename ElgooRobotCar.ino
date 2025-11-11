@@ -9,7 +9,6 @@
 #include <avr/wdt.h>
 #include "ApplicationFunctionSet_xxx0.h"
 #include"scalarPosition.h"
-#include"scalarPosition.h"
 
 bool onGround;
 void setup()
@@ -21,9 +20,10 @@ void setup()
   int directionRecord = 0;
 
   // added by Alan
-  // PositionTracking kalmanFilter = PositionTracking(); // leaving all default values
+  PositionTracking kalmanFilter = PositionTracking(0,0,1,1,0,0,1,1,0.01); // set to the default values manually
   // values later used by Kalman filter
-  float heading = 0, accel = 0, voltage = 0, dummy = 0; // dummy passed as a garbage value where needed
+  float heading = 0, voltage = 0;
+  int16_t accel, dummy; // dummy passed as garbage value where needed 
   int dt = 0;
   unsigned long clockTime = millis();
 
@@ -48,15 +48,15 @@ void loop()
     if (onGround) {
 
       // by Alan
-      // // find heading, acceleration, dt, and voltage
-      // Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
-      // accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy) // set accel, reading x axis only
-      // voltage = Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
+      // find heading, acceleration, dt, and voltage
+      AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
+      accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy); // set accel, reading x axis only
+      voltage = AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
       unsigned long currTime = millis();
       dt = currTime - clockTime;
       clockTime = currTime;
 
-      // kalmanFilter.updatePosition(heading, accel, dt, voltage);
+      kalmanFilter.updatePosition(heading, accel, dt, voltage);
       // end of Alan's block
       
       // Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, directionRecord, 50, 12, 150);
