@@ -1886,6 +1886,8 @@ static uint8_t pathHead = 0; // dequeue index
 static uint8_t pathTail = 0; // enqueue index
 static uint8_t pathCount = 0;
 
+static uint8_t currHeading = -1; // stores current heading for reuse in movement commands.
+
 static bool enqueueAction(const PathAction &a)
 {
   if (pathCount >= PATH_QUEUE_CAPACITY)
@@ -1916,6 +1918,62 @@ static void sendCommandAck(const char *id)
     Serial.print(id);
   }
   Serial.print("_ok}");
+}
+
+// Top level PathAction handler
+static void handleAction() {
+  const uint_8 standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
+  PathAction instruction; // dummy to pass to dequeue
+
+  // get head of queue
+  if !(dequeueAction(instruction));
+  return; // return early if nothing found in queue
+
+  // check if turn or move command
+  switch(instruction.type) {
+    case 0: // move command
+      // move the car forward/backwards to the current direction
+      // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
+      if (instruction.dir == 1) { // want to go forward
+        // WHILE NOT AT INTENDED LOCATION!!!
+        ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, currHeading, standardSpeed, standardKp, standardUpperLimit);
+      } else if (instruction.dir == 2) { // want to go backwards
+        ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Backward, currHeading, standardSpeed, standardKp, standardUpperLimit);
+      }
+      // intentionally fails on invalid input
+
+      break;
+
+    case 1: // turn command
+      // call the same movement function but with left or right
+
+      float yaw;
+      AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
+
+      // determine if we need to turn left or right
+      float distLeft = yaw - instruction.angle_deg;
+      if (distLeft < 0) distLeft += 360;
+      float distRight = instruction.angle_deg - yaw;
+      if (distRight < 0) distRight += 360;
+
+      if (distLeft < distRight) {
+        while (yaw < instruction.angle_deg - 0.5 || yaw > instruction.angle_deg + 0.5) {
+          ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Left, currHeading, standardSpeed, standardKp, standardUpperLimit);
+          AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw)
+
+        }
+      } else {
+
+      }
+
+
+      break;
+
+    default: // something is very wrong
+
+      // do nothing, remove the invalid instruction and return
+      return;
+  }
 }
 
 // -----------------------------------------------------------------------------------------
