@@ -16,6 +16,7 @@
 #include "ArduinoJson-v6.11.1.h" //ArduinoJson
 #include "MPU6050_getdata.h"
 #include "MPU6050.h"
+#include "scalarPosition.h"
 
 extern MPU6050 accelgyro;
 
@@ -1921,7 +1922,7 @@ static void sendCommandAck(const char *id)
 }
 
 // Top level PathAction handler
-static void handleAction() {
+static void handleAction(PositionTracking& fiter){
   const uint_8 standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
   PathAction instruction; // dummy to pass to dequeue
 
@@ -1932,42 +1933,11 @@ static void handleAction() {
   // check if turn or move command
   switch(instruction.type) {
     case 0: // move command
-      // move the car forward/backwards to the current direction
-      // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
-      if (instruction.dir == 1) { // want to go forward
-        // WHILE NOT AT INTENDED LOCATION!!!, need to get filter info in here somehow
-        ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, currHeading, standardSpeed, standardKp, standardUpperLimit);
-        // call stop it when we get there
-      } else if (instruction.dir == 2) { // want to go backwards
-        ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Backward, currHeading, standardSpeed, standardKp, standardUpperLimit);
-      }
-      // intentionally fails on invalid input
-
+      handleMove(filter, instruction);
       break;
 
     case 1: // turn command
-      // call the same movement function but with left or right
-
-      float yaw;
-      AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
-
-      // determine if we need to turn left or right
-      float distLeft = yaw - instruction.angle_deg;
-      if (distLeft < 0) distLeft += 360;
-      float distRight = instruction.angle_deg - yaw;
-      if (distRight < 0) distRight += 360;
-
-      if (distLeft < distRight) {
-        while (yaw < instruction.angle_deg - 0.5 || yaw > instruction.angle_deg + 0.5) {
-          ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Left, currHeading, standardSpeed, standardKp, standardUpperLimit);
-          AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw)
-        }
-        // call stop it so the car doesn't rotate forever'
-      } else {
-
-      }
-
-
+      handleTurn(instruction);
       break;
 
     default: // something is very wrong
@@ -1975,6 +1945,70 @@ static void handleAction() {
       // do nothing, remove the invalid instruction and return
       return;
   }
+}
+
+static void handleMove(PositionTracking& filter, PathAction& instruction) {
+  // move the car forward/backwards to the current direction
+  // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
+  float yaw;
+  if (currHeading == -1) {
+    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+    currHeading = yaw; // note that yaw is in degrees
+  }
+  SmartRobotCarMotionControl direction;
+  if (instruction.dir == 1) { // want to go forward
+    direction = Forward;
+  } else if (instruction.dir == 2) { // want to go backwards
+    direction = Backward;
+  } else return; // return early if invalid dir
+  float x = filter.getPosX(), y = filter.getPosY();
+  // determine desired position based on current x, y, and heading
+  float headingRads = (PI * currHeading) / 180;
+  float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
+  float newX = sin(headingRads) * instruction.distance_cm / 100.0
+
+  while !(isClose(x, newX) && isClose(y, newY)) {
+    ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
+    // have to update filter with new position
+    filter.updatePosition();
+    x = filter.getX();
+    y = filter.getY();
+  }
+  ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+}
+
+static void handleTurn(PathAction& instruction) {
+  // call the same movement function but with left or right
+
+    float yaw;
+    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
+
+    // determine if we need to turn left or right
+    float distLeft = yaw - instruction.angle_deg;
+    if (distLeft < 0) distLeft += 360;
+    float distRight = instruction.angle_deg - yaw;
+    if (distRight < 0) distRight += 360;
+
+    SmartRobotCarMotionControl direction;
+    if (distLeft < distRight) {
+      direction = Left;
+    } else {
+      direction = Right;
+    }
+
+    while (yaw < instruction.angle_deg - 0.5 || yaw > instruction.angle_deg + 0.5) {
+        ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Left, currHeading, standardSpeed, standardKp, standardUpperLimit);
+        AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw)
+      }
+      // call stop it so the car doesn't rotate forever
+      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+      currHeading = yaw; // note that these types do not match and it was like that in the unaltered Elgoo source.
+      // some loss is expected due to the cast, but should be marginal.
+}
+
+static bool isClose(float currentPos, float desiredPos) {
+  // checks if the position is reasonably close to desired position
+  return (currentPos > desiredPos - 0.25 && currentPos < desiredPos + 0.25);
 }
 
 // -----------------------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 #include "scalarPosition.h"
-#include<math.h>
 #include "2DVelocity.h"
+#include <avr/wdt.h>
+#include "ApplicationFunctionSet_xxx0.h"
+#include"scalarPosition.h"
 
 PositionTracking::PositionTracking(
     float posX = 0, 
@@ -26,6 +28,8 @@ PositionTracking::PositionTracking(
         this->accelNoise = accelNoise;
         this->xCovariance = 0;
         this->yCovariance = 0;
+
+        this->clocktime = millis();
 }
 
 float PositionTracking::getPosX() {
@@ -44,11 +48,27 @@ float PositionTracking::getVelY() {
     return this->yVelocity;
 }
 
-void PositionTracking::updatePosition(float headingDeg, float accel, int dt, float voltage) {
+void PositionTracking::updatePosition() {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
     // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
     // voltage from Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue()
     // accel from accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz) This one seems to be external to Application_FunctionSet.cpp
+
+    float heading = 0, voltage = 0;
+    int16_t accel, dummy; // dummy passed as garbage value where needed 
+    int dt = 0;
+
+    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
+    accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy); // set accel, reading x axis only
+    voltage = AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
+    unsigned long currTime = millis();
+    dt = currTime - clockTime;
+    clockTime = currTime;
+
+    
+
+    // convert accel from LSB to usable meters per second squared
+    float accelmps = motion::lsbToMps(accel);
 
     // make model predictions
     float magVelocity = sqrt(pow(this->xVelocity, 2) + pow(this->yVelocity, 2)); // a^2 = b^2 + c^2
@@ -56,8 +76,9 @@ void PositionTracking::updatePosition(float headingDeg, float accel, int dt, flo
 
     float newVelX, newVelY, accelX, accelY;
 
-    motion::velPerAxis(magVelocity, headingDeg, newVelX, newVelY); // sets newVelX and newVelY to appropriate values based on trig
-    motion::velPerAxis(accel, headingDeg, accelX, accelY); // sets accelX and accelY appropriately
+    motion::velPerAxis(magVelocity, heading, newVelX, newVelY); // sets newVelX and newVelY to appropriate values based on trig
+    // JUST CALL COSINE AND SIN, NO CMATH.H IN ARDUINO
+    motion::velPerAxis(accelmps, heading, accelX, accelY); // sets accelX and accelY appropriately
 
     float newPosX = this->xPosition + (this->xVelocity + (0.5 * accelX * pow(dt, 2))); // this averages old and new accel in position update
     float newPosY = this->yPosition + (this->yVelocity + (0.5 * accelY * pow(dt, 2)));
@@ -88,7 +109,7 @@ void PositionTracking::updatePosition(float headingDeg, float accel, int dt, flo
     */
 
     float vSpeedX, vSpeedY; // speed in x and y determined by voltage
-    motion::velPerAxis(this->voltageToSpeed(voltage), headingDeg, vSpeedX, vSpeedY);
+    motion::velPerAxis(this->voltageToSpeed(voltage), heading, vSpeedX, vSpeedY);
 
     // update X velocity
     float residual = vSpeedX - newVelX;
