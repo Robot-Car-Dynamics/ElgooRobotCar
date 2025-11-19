@@ -1935,8 +1935,9 @@ static void handleAction() {
       // move the car forward/backwards to the current direction
       // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
       if (instruction.dir == 1) { // want to go forward
-        // WHILE NOT AT INTENDED LOCATION!!!
+        // WHILE NOT AT INTENDED LOCATION!!!, need to get filter info in here somehow
         ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, currHeading, standardSpeed, standardKp, standardUpperLimit);
+        // call stop it when we get there
       } else if (instruction.dir == 2) { // want to go backwards
         ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Backward, currHeading, standardSpeed, standardKp, standardUpperLimit);
       }
@@ -1960,8 +1961,8 @@ static void handleAction() {
         while (yaw < instruction.angle_deg - 0.5 || yaw > instruction.angle_deg + 0.5) {
           ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Left, currHeading, standardSpeed, standardKp, standardUpperLimit);
           AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw)
-
         }
+        // call stop it so the car doesn't rotate forever'
       } else {
 
       }
