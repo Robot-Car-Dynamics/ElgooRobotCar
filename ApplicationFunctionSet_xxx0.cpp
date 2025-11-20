@@ -16,7 +16,10 @@
 #include "ArduinoJson-v6.11.1.h" //ArduinoJson
 #include "MPU6050_getdata.h"
 #include "MPU6050.h"
-
+#include <SoftwareSerial.h>
+#define ESP32_RX 12
+#define ESP32_TX 13
+SoftwareSerial espSerial(ESP32_RX, ESP32_TX); // RX, TX
 extern MPU6050 accelgyro;
 
 #define _is_print 0
@@ -95,13 +98,14 @@ void ApplicationFunctionSet::ApplicationFunctionSet_Init(void)
 {
   bool res_error = true;
   Serial.begin(9600);
+  espSerial.begin(9600);
   AppVoltage.DeviceDriverSet_Voltage_Init();
   AppMotor.DeviceDriverSet_Motor_Init();
   AppServo.DeviceDriverSet_Servo_Init(90);
   AppKey.DeviceDriverSet_Key_Init();
   AppRBG_LED.DeviceDriverSet_RBGLED_Init(20);
   AppIRrecv.DeviceDriverSet_IRrecv_Init();
-  AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Init();
+  // AppULTRASONIC.DeviceDriverSet_ULTRASONIC_Init();
   AppITR20001.DeviceDriverSet_ITR20001_Init();
   res_error = AppMPU6050getdata.MPU6050_dveInit();
   AppMPU6050getdata.MPU6050_calibration();
@@ -518,6 +522,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_RGB(void)
     }
   }
   unsigned long temp = millis() - getAnalogue_time;
+
   if (function_xxx((temp), 0, 500) && VoltageDetectionStatus == true)
   {
     switch (temp)
@@ -1910,12 +1915,8 @@ static bool dequeueAction(PathAction &out)
 static void sendCommandAck(const char *id)
 {
   // Mirror the command handshake identifier directly back to the ESP32
-  Serial.print('{');
-  if (id != nullptr && id[0] != '\0')
-  {
-    Serial.print(id);
-  }
-  Serial.print("_ok}");
+  String response = String('{') + String(id) + String('}');
+espSerial.print(response);
 }
 
 // -----------------------------------------------------------------------------------------
@@ -1925,22 +1926,14 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
 {
   static String SerialPortData = "";
   uint8_t c = "";
-  if (Serial.available() > 0)
+  
+  if (espSerial.available() > 0)
   {
-    while (c != '}' && Serial.available() > 0)
-    {
-      // while (Serial.available() == 0)//Forcibly wait for a frame of data to be received
-      //   ;
-      c = Serial.read();
-      SerialPortData += (char)c;
-    }
+    SerialPortData = espSerial.readString();
   }
-  if (c == '}') //Data frame tail check
+  if (SerialPortData.length() > 0)//Data frame tail check
   {
-#if _Test_print
-    Serial.println(SerialPortData);
-#endif
-    // if (true == SerialPortData.equals("{f}") || true == SerialPortData.equals("{b}") || true == SerialPortData.equals("{l}") || true == SerialPortData.equals("{r}"))
+
     // {
     //   Serial.print(SerialPortData);
     //   SerialPortData = "";
@@ -2048,11 +2041,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         a.distance_cm = (uint16_t)(doc["D2"] | 0);
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
         FastLED.show();
-        delay(1000);
+        delay(100);
         Serial.println("RECIEVE");
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
         FastLED.show();
-        delay(1000);
+        delay(100);
         if (!enqueueAction(a))
         {
           Serial.print("{\"err\":\"overflow\"}");
@@ -2073,18 +2066,22 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         a.distance_cm = 0;
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
         FastLED.show();
-        delay(1000);
+        delay(100);
         Serial.println("RECIEVE");
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
         FastLED.show();
-        delay(1000);
+        delay(100);
         if (!enqueueAction(a))
         {
           Serial.print("{\"err\":\"overflow\"}");
         }
         else
         {
+          Serial.print("queued action ");
+          Serial.print(a.type);
+          Serial.println(a.angle_deg);
           sendCommandAck(CommandSerialNumber.c_str());
+          Serial.print("tried to send an ack");
         }
       }
         break;
@@ -2096,22 +2093,15 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
           //posTracker->getLocSpe(&position, &velocity);
       //  }
         // reply with a JSON object containing pose
-
-        Serial.print("{\"H\":\"");
-        Serial.print(CommandSerialNumber);
-        Serial.print("\",\"pose\":{\"x\":");
-        Serial.print(position);
-        Serial.print(",\"v\":");
-        Serial.print(velocity);
-        Serial.print("}}");
-
-                AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
-        FastLED.show();
-        delay(1000);
-        Serial.println("RECIEVE");
-        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
-        FastLED.show();
-        delay(1000);
+        // Build response in one string for atomic transmission
+        String response = String("{\"H\":\"") + CommandSerialNumber + 
+                         String("\",\"pose\":{\"x\":") + String(position) + 
+                         String(",\"v\":") + String(velocity) + String("}}");
+        espSerial.print(response);
+        delay(2);
+        Serial.print("sent pose response: ");
+        Serial.println(response);
+        // espSerial.flush(); // Ensure all data is sent immediately
       }
         break;
 

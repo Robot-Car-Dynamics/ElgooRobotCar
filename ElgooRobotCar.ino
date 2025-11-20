@@ -12,10 +12,12 @@
 #include"scalarPosition.h"
 
 bool onGround;
+
 void setup()
 {
   // put your setup code here, to run once:
-  Application_FunctionSet.ApplicationFunctionSet_Init(); // here i start the pos tracking moduel
+  Serial.print("init was run");
+  Application_FunctionSet.ApplicationFunctionSet_Init(); 
   wdt_enable(WDTO_2S);
 }
   int directionRecord = 0;
@@ -44,13 +46,13 @@ void loop()
 //by lucas - Keep position tracking functionality
  onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
 
-    Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
+    // Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
     if (onGround) {
 
       // by Alan
       // // find heading, acceleration, dt, and voltage
       // Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
-      // accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy) // set accel, reading x axis only
+     // accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy) // set accel, reading x axis only
       // voltage = Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
       unsigned long currTime = millis();
       dt = currTime - clockTime;
