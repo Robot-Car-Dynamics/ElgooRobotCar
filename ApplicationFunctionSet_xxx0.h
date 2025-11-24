@@ -43,7 +43,7 @@ void ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotionContro
   void ApplicationFunctionSet_Standby(void);            //Standby Mode
   void ApplicationFunctionSet_KeyCommand(void);         //Mode Switch Button
   void ApplicationFunctionSet_SensorDataUpdate(void);   //Sensor Data Update
-  void ApplicationFunctionSet_SerialPortDataAnalysis(void);
+  void ApplicationFunctionSet_SerialPortDataAnalysis(PositionTracking &filter); //Serial Port Data Analysis
   void ApplicationFunctionSet_IRrecv(void);
 
   //added by lucas

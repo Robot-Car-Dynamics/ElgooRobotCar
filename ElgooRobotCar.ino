@@ -38,14 +38,14 @@ void loop()
   // Application_FunctionSet.ApplicationFunctionSet_Rocker();
   // Application_FunctionSet.ApplicationFunctionSet_Standby();
   // Application_FunctionSet.ApplicationFunctionSet_IRrecv();
-  Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis();
+  Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis(kalmanFilter);
 
  onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
 //  Serial.print("the car has this many actions queued: ");
 //  Serial.println(Application_FunctionSet.numPathActions());
 
     // Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
-    if (onGround) {
+    // if (onGround) {
 
       // by Alan
       kalmanFilter.updatePosition(); // updatePosition is now internal and does not need external help
@@ -53,7 +53,7 @@ void loop()
         Application_FunctionSet.handleAction(kalmanFilter);
         // will not return until action in front of queue is complete
         // above call handles updating filter
-      }
+      // }
 
       // // find heading, acceleration, dt, and voltage
       // Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading

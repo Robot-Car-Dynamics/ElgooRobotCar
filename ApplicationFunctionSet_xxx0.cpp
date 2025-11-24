@@ -19,8 +19,8 @@
 #include "scalarPosition.h"
 
 #include <SoftwareSerial.h>
-#define ESP32_RX 12
-#define ESP32_TX 13
+#define ESP32_RX 13
+#define ESP32_TX 12
 SoftwareSerial espSerial(ESP32_RX, ESP32_TX); // RX, TX
 extern MPU6050 accelgyro;
 
@@ -1980,8 +1980,6 @@ static void sendCommandAck(const char *id)
 espSerial.print(response);
 }
 
-
-
 static void handleMove(PositionTracking& filter, PathAction& instruction) {
   // move the car forward/backwards to the current direction
   // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
@@ -2003,11 +2001,19 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
   float newX = sin(headingRads) * instruction.distance_cm / 100.0;
 
+  static unsigned long lastUpdateTime = 0;
+  unsigned long currentTime =0;
+  wdt_reset(); // Reset watchdog to prevent timeout during long movements
   while (!isClose(x, newX) || !isClose(y, newY)) {
-    wdt_reset(); // Reset watchdog to prevent timeout during long movements
     Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
     // have to update filter with new position
-    filter.updatePosition();
+    //only update position every 500ms
+    currentTime = millis();
+    if (currentTime - lastUpdateTime >= 500) {
+        filter.updatePosition();
+        lastUpdateTime = currentTime;
+    }
+    
     x = filter.getPosX();
     y = filter.getPosY();
     Serial.print("Current X: "); Serial.print(x); Serial.print(" Y: "); Serial.println(y);
@@ -2016,9 +2022,51 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
 }
 
+// static void handleMove(PositionTracking& filter, PathAction& instruction) {
+//   // move the car forward/backwards to the current direction
+//   // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
+//   const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
+//   float yaw;
+//   if (currHeading == -1.0) {
+//     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+//     currHeading = yaw; // note that yaw is in degrees
+//   }
+//   SmartRobotCarMotionControl direction;
+//   if (instruction.dir == 1) { // want to go forward
+//     direction = Forward;
+//   } else if (instruction.dir == 2) { // want to go backwards
+//     direction = Backward;
+//   } else return; // return early if invalid dir
+//   float x = filter.getPosX(), y = filter.getPosY();
+//   // determine desired position based on current x, y, and heading
+//   float headingRads = (PI * currHeading) / 180;
+//   float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
+//   float newX = sin(headingRads) * instruction.distance_cm / 100.0;
+
+//   static unsigned long lastUpdateTime = 0;
+//   unsigned long currentTime =0;
+//   wdt_reset(); // Reset watchdog to prevent timeout during long movements
+//   while (!isClose(x, newX) || !isClose(y, newY)) {
+//     Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
+//     // have to update filter with new position
+//     //only update position every 500ms
+//     currentTime = millis();
+//     if (currentTime - lastUpdateTime >= 500) {
+//         filter.updatePosition();
+//         lastUpdateTime = currentTime;
+//     }
+    
+//     x = filter.getPosX();
+//     y = filter.getPosY();
+//     Serial.print("Current X: "); Serial.print(x); Serial.print(" Y: "); Serial.println(y);
+//     Serial.print("Target X: "); Serial.print(newX); Serial.print(" Y: "); Serial.println(newY);
+//   }
+//   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+// }
+
 static void handleTurn(PathAction& instruction) {
   // call the same movement function but with left or right
-    const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
+    const uint8_t standardSpeed = 50;
     float yaw;
     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
 
@@ -2028,19 +2076,18 @@ static void handleTurn(PathAction& instruction) {
     float distRight = instruction.angle_deg - yaw;
     if (distRight < 0) distRight += 360;
 
-    
-    if (distLeft < distRight) {
-    } else {
-    }
-
     wdt_reset(); // Reset watchdog to prevent timeout during turns
-    while (yaw < instruction.angle_deg - 0.5 || yaw > instruction.angle_deg + 0.5) {
-          if (distLeft < distRight) {
-            Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarMotionControl(Left, standardSpeed);
+    if (distLeft < distRight) {
+    while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
+              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ standardSpeed,
+                                           /*direction_B*/ direction_back, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
             Serial.println(yaw);
-    } else {
-            Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarMotionControl(Right, standardSpeed);
+    }
+   } else {
+            while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
+             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ standardSpeed,
+                                           /*direction_B*/ direction_just, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
             Serial.println(yaw);
     }
@@ -2059,7 +2106,7 @@ static bool isClose(float currentPos, float desiredPos) {
 // -----------------------------------------------------------------------------------------
 
 /*Data analysis on serial port*/
-void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
+void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(PositionTracking& filter)
 {
   static String SerialPortData = "";
   uint8_t c = "";
@@ -2225,15 +2272,17 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
 
       case 300: /*<Command：N 300> : Pose query -> reply with JSON {"H":"<id>","pose":{"x":...,"v":...}} */
       {
-        int position = 0, velocity = 0;
+        float x = filter.getPosX();
+        float y = filter.getPosY();
+        
         //if (posTracker) {
           //posTracker->getLocSpe(&position, &velocity);
       //  }
         // reply with a JSON object containing pose
         // Build response in one string for atomic transmission
         String response = String("{\"H\":\"") + CommandSerialNumber + 
-                         String("\",\"pose\":{\"x\":") + String(position) + 
-                         String(",\"v\":") + String(velocity) + String("}}");
+                         String("\",\"pose\":{\"x\":") + String(x) + 
+                         String(",\"y\":") + String(y) + String("}}");
         espSerial.print(response);
         delay(2);
         Serial.print("sent pose response: ");
