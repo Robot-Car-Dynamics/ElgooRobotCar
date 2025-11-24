@@ -27,6 +27,9 @@ extern MPU6050 accelgyro;
 #define _is_print 0
 #define _Test_print 0
 
+// Forward declaration for path queue accessor
+static uint8_t getPathCount();
+
 ApplicationFunctionSet Application_FunctionSet;
 
 /*Hardware device object list*/
@@ -40,6 +43,20 @@ DeviceDriverSet_Motor AppMotor;
 DeviceDriverSet_ULTRASONIC AppULTRASONIC;
 DeviceDriverSet_Servo AppServo;
 DeviceDriverSet_IRrecv AppIRrecv;
+
+enum PathActionType { PATH_MOVE = 0, PATH_TURN = 1 };
+struct PathAction {
+  uint8_t type; // PathActionType
+  uint8_t dir;  // for move: 1 forward, 2 backward
+  uint16_t distance_cm; // for move
+  int16_t angle_deg;    // for turn
+};
+
+// Forward declarations for static helper functions
+static bool dequeueAction(PathAction &out);
+static void handleMove(PositionTracking& filter, PathAction& instruction);
+static void handleTurn(PathAction& instruction);
+
 /*f(x) int */
 static boolean
 function_xxx(long x, long s, long e) //f(x)
@@ -52,7 +69,7 @@ function_xxx(long x, long s, long e) //f(x)
 static void
 delay_xxx(uint16_t _ms)
 {
-  wdt_reset();
+  // wdt_reset();
   for (unsigned long i = 0; i < _ms; i++)
   {
     delay(1);
@@ -159,15 +176,49 @@ void ApplicationFunctionSet::ReportPosition(void)
         int position = 0, velocity = 0;
         // posTracker->getLocSpe(&position, &velocity);
         
-        Serial.print("Position X: ");
-        Serial.print(position);
-        Serial.print(" mm, Velocity X: ");
-        Serial.print(velocity);
-        Serial.println(" mm/s");
-        
         lastPositionReport = currentTime;
     }
 }
+
+// Check if there are pending path actions
+int ApplicationFunctionSet::numPathActions(void)
+{
+    return getPathCount();
+}
+
+// Member function wrapper to call the static handleAction
+void ApplicationFunctionSet::handleAction(PositionTracking &filter)
+{
+   
+  const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
+  PathAction instruction; // dummy to pass to dequeue
+
+  // get head of queue
+  if (!dequeueAction(instruction)) {
+    Serial.println("nothin in queue");
+    return; // return early if nothing found in queue
+  }
+
+  // check if turn or move command
+    Serial.println("handler started");
+
+  Serial.println(instruction.type);
+  switch(instruction.type) {
+    case 0: // move command
+      handleMove(filter, instruction);
+      break;
+
+    case 1: // turn command
+      handleTurn(instruction);
+      break;
+
+    default: // something is very wrong
+
+      // do nothing, remove the invalid instruction and return
+      return;
+  }
+}
+
 /*ITR20001 Check if the car leaves the ground*/
 bool ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void)
 {
@@ -275,15 +326,6 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   // Apply motor speeds based on direction
   if (direction == Forward)
   {
-    Serial.print("Motor speeds - Left: ");
-    Serial.print(L);
-    Serial.print(" Right: ");
-    Serial.print(R);
-    Serial.print(" Yaw: ");
-    Serial.print(Yaw);
-    Serial.print(" Error: ");
-    Serial.println(error);
-    
     // Left motor is B, Right motor is A
     AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ R,
                                          /*direction_B*/ direction_just, /*speed_B*/ L, 
@@ -308,6 +350,15 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   Input parameters:     1# direction:Forward（1）、Backward（2）、 Left（3）、Right（4）、LeftForward（5）、LeftBackward（6）、RightForward（7）RightBackward（8）
                         2# speed(0--255)
 */
+// Member wrapper to satisfy calls made on the Application_FunctionSet instance.
+// The actual implementation is a file-scoped helper named
+// ApplicationFunctionSet_SmartRobotCarMotionControl (defined below). We forward
+// member calls to the file-local implementation to preserve existing behavior.
+void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotionControl direction, uint8_t is_speed)
+{
+  ::ApplicationFunctionSet_SmartRobotCarMotionControl(direction, is_speed);
+}
+
 static void ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotionControl direction, uint8_t is_speed)
 {
   ApplicationFunctionSet Application_FunctionSet;
@@ -515,7 +566,7 @@ static void CMD_Lighting(uint8_t is_LightingSequence, int8_t is_LightingColorVal
 void ApplicationFunctionSet::ApplicationFunctionSet_RGB(void)
 {
   static unsigned long getAnalogue_time = 0;
-  FastLED.clear(true);
+  // FastLED.clear(true); // FastLED removed
   if (true == VoltageDetectionStatus) //Act on low power state？
   {
     if ((millis() - getAnalogue_time) > 3000)
@@ -611,8 +662,8 @@ void ApplicationFunctionSet::ApplicationFunctionSet_RGB(void)
           }
           // AppRBG_LED.leds[1] = CRGB::Blue;
           AppRBG_LED.leds[0] = CRGB::Violet;
-          FastLED.setBrightness(setBrightness);
-          FastLED.show();
+          // FastLED.setBrightness(setBrightness); // FastLED removed
+          // FastLED.show(); // FastLED removed
         }
       }
       break;
@@ -1027,7 +1078,7 @@ void ApplicationFunctionSet::CMD_inspect_xxx0(void)
 {
   if (Application_SmartRobotCarxxx0.Functional_Mode == CMD_inspect)
   {
-    Serial.println("CMD_inspect");
+    //Serial.println("CMD_inspect");
     delay(100);
   }
 }
@@ -1474,7 +1525,7 @@ void ApplicationFunctionSet::CMD_LightingControlTimeLimit_xxx0(uint8_t is_Lighti
       if ((millis() - Application_SmartRobotCarxxx0.CMD_LightingControl_Millis) > (is_LightingTimer)) //Check the timestamp
       {
         LightingControl_TE = true;
-        FastLED.clear(true);
+        // FastLED.clear(true); // FastLED removed
         Application_SmartRobotCarxxx0.Functional_Mode = CMD_Programming_mode; /*set mode to programming mode<Waiting for the next set of control commands>*/
         if (LightingControl_return == false)
         {
@@ -1521,7 +1572,7 @@ void ApplicationFunctionSet::CMD_LightingControlTimeLimit_xxx0(void)
       if ((millis() - Application_SmartRobotCarxxx0.CMD_LightingControl_Millis) > (CMD_is_LightingTimer)) //Check the timestamp
       {
         LightingControl_TE = true;
-        FastLED.clear(true);
+        // FastLED.clear(true); // FastLED removed
         Application_SmartRobotCarxxx0.Functional_Mode = CMD_Programming_mode; /*set mode to programming mode<Waiting for the next set of control commands>*/
         if (LightingControl_return == false)
         {
@@ -1600,7 +1651,7 @@ void ApplicationFunctionSet::CMD_ClearAllFunctions_xxx0(void)
   if (Application_SmartRobotCarxxx0.Functional_Mode == CMD_ClearAllFunctions_Standby_mode) //Command:N100 Clear all functions to enter standby mode
   {
     ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-    FastLED.clear(true);
+    // FastLED.clear(true); // FastLED removed
     AppRBG_LED.DeviceDriverSet_RBGLED_xxx(0 /*Duration*/, NUM_LEDS /*Traversal_Number*/, CRGB::Black);
     Application_SmartRobotCarxxx0.Motion_Control = stop_it;
     Application_SmartRobotCarxxx0.Functional_Mode = Standby_mode;
@@ -1609,7 +1660,7 @@ void ApplicationFunctionSet::CMD_ClearAllFunctions_xxx0(void)
   {
 
     ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-    FastLED.clear(true);
+    // FastLED.clear(true); // FastLED removed
     AppRBG_LED.DeviceDriverSet_RBGLED_xxx(0 /*Duration*/, NUM_LEDS /*Traversal_Number*/, CRGB::Black);
     Application_SmartRobotCarxxx0.Motion_Control = stop_it;
     Application_SmartRobotCarxxx0.Functional_Mode = CMD_Programming_mode;
@@ -1879,13 +1930,14 @@ void ApplicationFunctionSet::ApplicationFunctionSet_IRrecv(void)
 // Use N=200 for move (D1=direction 1=forward/2=backward, D2=distance_cm)
 // Use N=201 for turn (D1=angle_deg, positive = right/clockwise)
 
-enum PathActionType { PATH_MOVE = 0, PATH_TURN = 1 };
-struct PathAction {
-  uint8_t type; // PathActionType
-  uint8_t dir;  // for move: 1 forward, 2 backward
-  uint16_t distance_cm; // for move
-  int16_t angle_deg;    // for turn
-};
+
+
+// Forward declarations for static helper functions (after PathAction definition)
+static bool dequeueAction(PathAction &out);
+static void handleMove(PositionTracking& filter, PathAction& instruction);
+static void handleTurn(PathAction& instruction);
+static bool isClose(float currentPos, float desiredPos);
+static uint8_t getPathCount();  // Accessor for pathCount
 
 #define PATH_QUEUE_CAPACITY 16
 static PathAction pathQueue[PATH_QUEUE_CAPACITY];
@@ -1893,7 +1945,12 @@ static uint8_t pathHead = 0; // dequeue index
 static uint8_t pathTail = 0; // enqueue index
 static uint8_t pathCount = 0;
 
-static uint8_t currHeading = -1; // stores current heading for reuse in movement commands.
+static float currHeading = -1.0; // stores current heading for reuse in movement commands.
+
+// Accessor function for pathCount
+static uint8_t getPathCount() {
+  return pathCount;
+}
 
 static bool enqueueAction(const PathAction &a)
 {
@@ -1923,37 +1980,14 @@ static void sendCommandAck(const char *id)
 espSerial.print(response);
 }
 
-// Top level PathAction handler
-static void handleAction(PositionTracking& fiter){
-  const uint_8 standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
-  PathAction instruction; // dummy to pass to dequeue
 
-  // get head of queue
-  if !(dequeueAction(instruction));
-  return; // return early if nothing found in queue
-
-  // check if turn or move command
-  switch(instruction.type) {
-    case 0: // move command
-      handleMove(filter, instruction);
-      break;
-
-    case 1: // turn command
-      handleTurn(instruction);
-      break;
-
-    default: // something is very wrong
-
-      // do nothing, remove the invalid instruction and return
-      return;
-  }
-}
 
 static void handleMove(PositionTracking& filter, PathAction& instruction) {
   // move the car forward/backwards to the current direction
   // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
+  const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
   float yaw;
-  if (currHeading == -1) {
+  if (currHeading == -1.0) {
     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
     currHeading = yaw; // note that yaw is in degrees
   }
@@ -1967,21 +2001,24 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   // determine desired position based on current x, y, and heading
   float headingRads = (PI * currHeading) / 180;
   float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
-  float newX = sin(headingRads) * instruction.distance_cm / 100.0
+  float newX = sin(headingRads) * instruction.distance_cm / 100.0;
 
-  while !(isClose(x, newX) && isClose(y, newY)) {
-    ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
+  while (!isClose(x, newX) || !isClose(y, newY)) {
+    wdt_reset(); // Reset watchdog to prevent timeout during long movements
+    Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
     // have to update filter with new position
     filter.updatePosition();
-    x = filter.getX();
-    y = filter.getY();
+    x = filter.getPosX();
+    y = filter.getPosY();
+    Serial.print("Current X: "); Serial.print(x); Serial.print(" Y: "); Serial.println(y);
+    Serial.print("Target X: "); Serial.print(newX); Serial.print(" Y: "); Serial.println(newY);
   }
   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
 }
 
 static void handleTurn(PathAction& instruction) {
   // call the same movement function but with left or right
-
+    const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
     float yaw;
     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
 
@@ -1991,16 +2028,22 @@ static void handleTurn(PathAction& instruction) {
     float distRight = instruction.angle_deg - yaw;
     if (distRight < 0) distRight += 360;
 
-    SmartRobotCarMotionControl direction;
+    
     if (distLeft < distRight) {
-      direction = Left;
     } else {
-      direction = Right;
     }
 
+    wdt_reset(); // Reset watchdog to prevent timeout during turns
     while (yaw < instruction.angle_deg - 0.5 || yaw > instruction.angle_deg + 0.5) {
-        ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Left, currHeading, standardSpeed, standardKp, standardUpperLimit);
-        AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw)
+          if (distLeft < distRight) {
+            Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarMotionControl(Left, standardSpeed);
+            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+            Serial.println(yaw);
+    } else {
+            Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarMotionControl(Right, standardSpeed);
+            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+            Serial.println(yaw);
+    }
       }
       // call stop it so the car doesn't rotate forever
       ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
@@ -2043,7 +2086,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
     SerialPortData = "";
     if (error)
     {
-      Serial.println("error:deserializeJson");
+      //Serial.println("error:deserializeJson");
     }
     else if (!error) //Check if the deserialization is successful
     {
@@ -2134,11 +2177,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         a.dir = (uint8_t)(doc["D1"] | 1);
         a.distance_cm = (uint16_t)(doc["D2"] | 0);
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
-        FastLED.show();
+        // FastLED.show(); // FastLED removed
         delay(100);
         Serial.println("RECIEVE");
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
-        FastLED.show();
+        // FastLED.show(); // FastLED removed
         delay(100);
         if (!enqueueAction(a))
         {
@@ -2159,11 +2202,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         a.dir = 0;
         a.distance_cm = 0;
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
-        FastLED.show();
+        //FastLED.show();
         delay(100);
         Serial.println("RECIEVE");
         AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
-        FastLED.show();
+        //FastLED.show();
         delay(100);
         if (!enqueueAction(a))
         {
@@ -2271,7 +2314,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(void)
         {
           CMD_is_FastLED_setBrightness -= 5;
         }
-        FastLED.setBrightness(CMD_is_FastLED_setBrightness);
+        //FastLED.setBrightness(CMD_is_FastLED_setBrightness);
 
 #if _Test_print
         //Serial.print('{' + CommandSerialNumber + "_ok}");

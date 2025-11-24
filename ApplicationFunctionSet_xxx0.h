@@ -10,7 +10,7 @@
 #define _ApplicationFunctionSet_xxx0_H_
 
 #include <Arduino.h>
-// #include "PositionTracking.h"
+#include "scalarPosition.h"
 
 enum SmartRobotCarMotionControl
 {
@@ -30,6 +30,7 @@ class ApplicationFunctionSet
 public:
 //moved here by lucas so that we can call it from the main loop
   void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
+void ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotionControl direction, uint8_t is_speed);
   void ApplicationFunctionSet_Init(void);
   void ApplicationFunctionSet_Bootup(void);
   void ApplicationFunctionSet_RGB(void);
@@ -49,6 +50,9 @@ public:
   void ApplicationFunctionSet_PositionTracking();
   void ReportPosition();
   bool ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void);
+  void handleAction(PositionTracking &posTracker);
+  int numPathActions(void);
+
 
 public: /*CMD*/
   void CMD_UltrasoundModuleStatus_xxx0(uint8_t is_get);

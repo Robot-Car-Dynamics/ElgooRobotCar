@@ -9,10 +9,29 @@
 #ifndef _DeviceDriverSet_xxx0_H_
 #define _DeviceDriverSet_xxx0_H_
 
+#include <Arduino.h>
+
 #define _Test_DeviceDriverSet 0
 
-/*RBG LED*/
-#include "FastLED.h"
+/*RBG LED - FastLED removed to save flash memory*/
+// #include "FastLED.h"
+// Simple RGB struct to replace CRGB
+struct SimpleRGB {
+  uint8_t r, g, b;
+  SimpleRGB() : r(0), g(0), b(0) {}
+  SimpleRGB(uint8_t red, uint8_t green, uint8_t blue) : r(red), g(green), b(blue) {}
+  
+  // Color constants to replace CRGB colors
+  static const SimpleRGB Red;
+  static const SimpleRGB Black;
+  static const SimpleRGB White;
+  static const SimpleRGB Blue;
+  static const SimpleRGB Green;
+  static const SimpleRGB Yellow;
+  static const SimpleRGB Violet;
+};
+#define CRGB SimpleRGB
+
 class DeviceDriverSet_RBGLED
 {
 public:

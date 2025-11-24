@@ -18,7 +18,7 @@ public:
     float getVelY();
 private:
     float xPosition, xVelocity, xPosUncert, xVelUncert, yPosition, yVelocity, yPosUncert, yVelUncert, velMagnitude, accelNoise, xCovariance, yCovariance;
-    unsigned long clocktime;
+    unsigned long clockTime;
 };
 
 

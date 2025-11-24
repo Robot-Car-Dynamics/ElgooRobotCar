@@ -2,7 +2,14 @@
 #include "2DVelocity.h"
 #include <avr/wdt.h>
 #include "ApplicationFunctionSet_xxx0.h"
-#include"scalarPosition.h"
+#include "MPU6050_getdata.h"
+#include "MPU6050.h"
+#include "DeviceDriverSet_xxx0.h"
+
+// External sensor objects defined in ApplicationFunctionSet_xxx0.cpp
+extern MPU6050 accelgyro;
+extern MPU6050_getdata AppMPU6050getdata;
+extern DeviceDriverSet_Voltage AppVoltage;
 
 PositionTracking::PositionTracking(
     float posX = 0, 
@@ -29,7 +36,7 @@ PositionTracking::PositionTracking(
         this->xCovariance = 0;
         this->yCovariance = 0;
 
-        this->clocktime = millis();
+        this->clockTime = millis();
 }
 
 float PositionTracking::getPosX() {

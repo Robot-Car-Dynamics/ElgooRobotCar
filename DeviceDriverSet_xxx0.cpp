@@ -18,55 +18,40 @@ delay_xxx(uint16_t _ms)
     delay(1);
   }
 }
-/*RBG LED*/
+/*RBG LED - Stubbed out to remove FastLED dependency*/
+// Define color constants
+const SimpleRGB SimpleRGB::Red(255, 0, 0);
+const SimpleRGB SimpleRGB::Black(0, 0, 0);
+const SimpleRGB SimpleRGB::White(255, 255, 255);
+const SimpleRGB SimpleRGB::Blue(0, 0, 255);
+const SimpleRGB SimpleRGB::Green(0, 255, 0);
+const SimpleRGB SimpleRGB::Yellow(255, 255, 0);
+const SimpleRGB SimpleRGB::Violet(128, 0, 255);
+
 static uint32_t Color(uint8_t r, uint8_t g, uint8_t b)
 {
   return (((uint32_t)r << 16) | ((uint32_t)g << 8) | b);
 }
 void DeviceDriverSet_RBGLED::DeviceDriverSet_RBGLED_xxx(uint16_t Duration, uint8_t Traversal_Number, CRGB colour)
 {
-  if (NUM_LEDS < Traversal_Number)
-  {
-    Traversal_Number = NUM_LEDS;
-  }
-  for (int Number = 0; Number < Traversal_Number; Number++)
-  {
-    leds[Number] = colour;
-    FastLED.show();
-    delay_xxx(Duration);
-  }
+  // FastLED removed - no-op
 }
 void DeviceDriverSet_RBGLED::DeviceDriverSet_RBGLED_Init(uint8_t set_Brightness)
 {
-  FastLED.addLeds<NEOPIXEL, PIN_RBGLED>(leds, NUM_LEDS);
-  FastLED.setBrightness(set_Brightness);
+  // FastLED removed - no-op
+  pinMode(PIN_RBGLED, OUTPUT);
+  digitalWrite(PIN_RBGLED, LOW);
 }
 #if _Test_DeviceDriverSet
 void DeviceDriverSet_RBGLED::DeviceDriverSet_RBGLED_Test(void)
 {
-  leds[0] = CRGB::White;
-  FastLED.show();
-  delay_xxx(50);
-  leds[1] = CRGB::Red;
-  FastLED.show();
-  delay_xxx(50);
-  DeviceDriverSet_RBGLED_xxx(50 /*Duration*/, 5 /*Traversal_Number*/, CRGB::Black);
+  // FastLED removed - no-op
 }
 #endif
 
 void DeviceDriverSet_RBGLED::DeviceDriverSet_RBGLED_Color(uint8_t LED_s, uint8_t r, uint8_t g, uint8_t b)
 {
-  if (LED_s > NUM_LEDS)
-    return;
-  if (LED_s == NUM_LEDS)
-  {
-    FastLED.showColor(Color(r, g, b));
-  }
-  else
-  {
-    leds[LED_s] = Color(r, g, b);
-  }
-  FastLED.show();
+  // FastLED removed - no-op
 }
 
 /*Key*/
