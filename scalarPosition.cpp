@@ -43,16 +43,32 @@ float PositionTracking::getPosX() {
     return this->xPosition;
 }
 
+float PositionTracking::getPosXUncert() {
+    return this->xPosUncert;
+}
+
 float PositionTracking::getVelX() {
     return this->xVelocity;
+}
+
+float PositionTracking::getVelXUncert() {
+    return this->xVelUncert;
 }
 
 float PositionTracking::getPosY() {
     return this->yPosition;
 }
 
+float PositionTracking::getPosYUncert() {
+    return this->yPosUncert;
+}
+
 float PositionTracking::getVelY() {
     return this->yVelocity;
+}
+
+float PositionTracking::getVelY() {
+    return this->yVelUncert;
 }
 
 void PositionTracking::updatePosition() {
@@ -61,7 +77,7 @@ void PositionTracking::updatePosition() {
     // voltage from Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue()
     // accel from accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz) This one seems to be external to Application_FunctionSet.cpp
 
-    float heading = 0, voltage = 0;
+    float heading = 0, voltage = 0, dtSec = 0;
     int16_t accel, dummy; // dummy passed as garbage value where needed 
     int dt = 0;
 
@@ -69,7 +85,8 @@ void PositionTracking::updatePosition() {
     accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy); // set accel, reading x axis only
     voltage = AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
     unsigned long currTime = millis();
-    dt = currTime - clockTime;
+    dt = currTime - clockTime; // dt is in milliseconds
+    dtSec = dt / 1000.0; // dtSec is in seconds
     clockTime = currTime;
 
     
@@ -79,7 +96,7 @@ void PositionTracking::updatePosition() {
 
     // make model predictions
     float magVelocity = sqrt(pow(this->xVelocity, 2) + pow(this->yVelocity, 2)); // a^2 = b^2 + c^2
-    magVelocity = magVelocity + (accel * dt); // update with accelerometer info
+    magVelocity = magVelocity + (accel * dtSec); // update with accelerometer info
 
     float newVelX, newVelY, accelX, accelY;
 
@@ -87,21 +104,21 @@ void PositionTracking::updatePosition() {
     // JUST CALL COSINE AND SIN, NO CMATH.H IN ARDUINO
     motion::velPerAxis(accelmps, heading, accelX, accelY); // sets accelX and accelY appropriately
 
-    float newPosX = this->xPosition + (this->xVelocity + (0.5 * accelX * pow(dt, 2))); // this averages old and new accel in position update
-    float newPosY = this->yPosition + (this->yVelocity + (0.5 * accelY * pow(dt, 2)));
+    float newPosX = this->xPosition + (this->xVelocity + (0.5 * accelX * pow(dtSec, 2))); // this averages old and new accel in position update
+    float newPosY = this->yPosition + (this->yVelocity + (0.5 * accelY * pow(dtSec, 2)));
 
-    float newPosXUncert = this->xPosUncert + (2 * this->xCovariance * dt) + (this->xVelUncert * pow(dt, 2)) + (pow(dt, 4) / 4) * this->accelNoise;
-    float newPosYUncert = this->yPosUncert + (2 * this->yCovariance * dt) + (this->yVelUncert * pow(dt, 2)) + (pow(dt, 4) / 4) * this->accelNoise;
-    // old uncertainty + (2 * covariance * dt) + (new velocity uncertainty * dt^2) + (dt^4 / 4) * accel noise
+    float newPosXUncert = this->xPosUncert + (2 * this->xCovariance * dtSec) + (this->xVelUncert * pow(dtSec, 2)) + (pow(dtSec, 4) / 4) * this->accelNoise;
+    float newPosYUncert = this->yPosUncert + (2 * this->yCovariance * dtSec) + (this->yVelUncert * pow(dtSec, 2)) + (pow(dtSec, 4) / 4) * this->accelNoise;
+    // old uncertainty + (2 * covariance * dtSec) + (new velocity uncertainty * dtSec^2) + (dtSec^4 / 4) * accel noise
     // this formula is complex because acceleration noise affects both position and acceleration
     
-    float newVelXUncert = this->xVelUncert + pow(dt, 2) * this->accelNoise;
-    float newVelYUncert = this->yVelUncert + pow(dt, 2) * this->accelNoise;
-    // old vel uncertainty + dt^2 * accel noise
+    float newVelXUncert = this->xVelUncert + pow(dtSec, 2) * this->accelNoise;
+    float newVelYUncert = this->yVelUncert + pow(dtSec, 2) * this->accelNoise;
+    // old vel uncertainty + dtSec^2 * accel noise
 
-    float newXCovariance = this->xCovariance + this->xVelUncert * dt + (pow(dt, 3) / 2) * this->accelNoise;
-    float newYCovariance = this->yCovariance + this->yVelUncert * dt + (pow(dt, 3) / 2) * this->accelNoise;
-    // old covariance + velocity uncertainty * dt + (dt^3 * accel noise / 2)
+    float newXCovariance = this->xCovariance + this->xVelUncert * dtSec + (pow(dtSec, 3) / 2) * this->accelNoise;
+    float newYCovariance = this->yCovariance + this->yVelUncert * dtSec + (pow(dtSec, 3) / 2) * this->accelNoise;
+    // old covariance + velocity uncertainty * dtSec + (dtSec^3 * accel noise / 2)
 
     // update predictions (do filtering)
     // will compare to expected speed for voltage given. 
@@ -127,7 +144,7 @@ void PositionTracking::updatePosition() {
     newVelXUncert = (1 - kalmanGain) * newVelXUncert; // newVelX now represents updated prediction.
 
     // update X position, reusing some variables to save memory space
-    residual = ((vSpeedX * dt) + this->xPosition) - newPosX; // old position + (speed * dt) - predicted position
+    residual = ((vSpeedX * dtSec) + this->xPosition) - newPosX; // old position + (speed * dtSec) - predicted position
     innovCov = newPosXUncert + 0.05; // 0.05 once again being very low.
     kalmanGain = newPosXUncert / innovCov;
     newPosX = newPosX + kalmanGain * residual;
@@ -141,7 +158,7 @@ void PositionTracking::updatePosition() {
     newVelYUncert = (1 - kalmanGain) * newVelYUncert;
 
     // update Y position
-    residual = ((vSpeedY * dt) + this->yPosition) - newPosY;
+    residual = ((vSpeedY * dtSec) + this->yPosition) - newPosY;
     innovCov = newPosYUncert + 0.05;
     kalmanGain = newPosYUncert / innovCov;
     newPosY = newPosY + kalmanGain * residual;
@@ -162,7 +179,7 @@ void PositionTracking::updatePosition() {
 }
 
 float PositionTracking::voltageToSpeed(float voltage) {
-    // returns 0.000235 to represent 0.235 meters per second, the approximate speed of the car as measured
+    // returns 0.235 to represent 0.235 meters per second, the approximate speed of the car as measured
     // may need to increase some, since the car didn't go in a straight line exactly
-    return 0.000235;
+    return 0.235;
 }

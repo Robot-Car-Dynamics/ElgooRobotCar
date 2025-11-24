@@ -13,9 +13,13 @@ public:
     void updatePosition();
     float voltageToSpeed(float voltage);
     float getPosX();
+    float getPosXUncert();
     float getPosY();
+    float getPosYUncert();
     float getVelX();
+    float getVelXUncert();
     float getVelY();
+    float getVelYUncert();
 private:
     float xPosition, xVelocity, xPosUncert, xVelUncert, yPosition, yVelocity, yPosUncert, yVelUncert, velMagnitude, accelNoise, xCovariance, yCovariance;
     unsigned long clockTime;
