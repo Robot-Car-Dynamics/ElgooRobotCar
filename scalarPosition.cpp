@@ -67,7 +67,7 @@ float PositionTracking::getVelY() {
     return this->yVelocity;
 }
 
-float PositionTracking::getVelY() {
+float PositionTracking::getVelYUncert() {
     return this->yVelUncert;
 }
 
