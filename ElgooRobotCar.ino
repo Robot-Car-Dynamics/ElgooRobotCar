@@ -16,9 +16,8 @@ bool onGround;
 void setup()
 {
   // put your setup code here, to run once:
-  Serial.print("init was run");
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
-  wdt_enable(WDTO_2S);
+  wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
 }
   int directionRecord = 0;
 
@@ -27,11 +26,12 @@ void setup()
 
 void loop()
 {
+  
   wdt_reset();
   Application_FunctionSet.ApplicationFunctionSet_SensorDataUpdate();
   // Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
   // Temporarily disable non-essential features to save memory
-  Application_FunctionSet.ApplicationFunctionSet_RGB();
+  // Application_FunctionSet.ApplicationFunctionSet_RGB(); // Disabled - FastLED removed
   // Application_FunctionSet.ApplicationFunctionSet_Follow();
   // Application_FunctionSet.ApplicationFunctionSet_Obstacle();
   // Application_FunctionSet.ApplicationFunctionSet_Tracking();
@@ -39,26 +39,29 @@ void loop()
   // Application_FunctionSet.ApplicationFunctionSet_Standby();
   // Application_FunctionSet.ApplicationFunctionSet_IRrecv();
   Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis();
-//by lucas - Keep position tracking functionality
+
  onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
+//  Serial.print("the car has this many actions queued: ");
+//  Serial.println(Application_FunctionSet.numPathActions());
 
     // Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
     if (onGround) {
 
       // by Alan
       kalmanFilter.updatePosition(); // updatePosition is now internal and does not need external help
-      if (Application_FunctionSet.pathCount) {
+      if (Application_FunctionSet.numPathActions() > 0) {
         Application_FunctionSet.handleAction(kalmanFilter);
         // will not return until action in front of queue is complete
         // above call handles updating filter
       }
+
       // // find heading, acceleration, dt, and voltage
       // Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
      // accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy) // set accel, reading x axis only
       // voltage = Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
-      unsigned long currTime = millis();
-      dt = currTime - clockTime;
-      clockTime = currTime;
+      // unsigned long currTime = millis();
+      // dt = currTime - clockTime;
+      // clockTime = currTime;
 
       // kalmanFilter.updatePosition(heading, accel, dt, voltage);
       // end of Alan's block
