@@ -10,7 +10,7 @@ This version performs Kalman filtering through scalarized calculations
 class PositionTracking {
 public:
     PositionTracking(float posX, float velX, float posXUncert, float velXUncert, float posY, float velY, float posYUncert, float velYUncert, float accelNoise);
-    void updatePosition();
+    void updatePosition(float heading);
     float voltageToSpeed(float voltage);
     float getPosX();
     float getPosXUncert();

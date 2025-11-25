@@ -48,7 +48,7 @@ void loop()
     // if (onGround) {
 
       // by Alan
-      kalmanFilter.updatePosition(); // updatePosition is now internal and does not need external help
+      // kalmanFilter.updatePosition(Application_FunctionSet.currHeading); // updatePosition is now internal and does not need external help
       if (Application_FunctionSet.numPathActions() > 0) {
         Application_FunctionSet.handleAction(kalmanFilter);
         // will not return until action in front of queue is complete

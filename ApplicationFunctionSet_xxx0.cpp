@@ -1945,7 +1945,7 @@ static uint8_t pathHead = 0; // dequeue index
 static uint8_t pathTail = 0; // enqueue index
 static uint8_t pathCount = 0;
 
-static float currHeading = -1.0; // stores current heading for reuse in movement commands.
+static float currHeading = 0; // stores current heading for reuse in movement commands.
 
 // Accessor function for pathCount
 static uint8_t getPathCount() {
@@ -1984,11 +1984,8 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   // move the car forward/backwards to the current direction
   // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
   const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
-  float yaw;
-  if (currHeading == -1.0) {
-    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-    currHeading = yaw; // note that yaw is in degrees
-  }
+  float yaw = 0;
+
   SmartRobotCarMotionControl direction;
   if (instruction.dir == 1) { // want to go forward
     direction = Forward;
@@ -2010,8 +2007,12 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
     //only update position every 500ms
     currentTime = millis();
     if (currentTime - lastUpdateTime >= 500) {
-        filter.updatePosition();
         lastUpdateTime = currentTime;
+        AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+        currHeading += yaw;
+        if (currHeading < 0) currHeading += 360;
+        else if (currHeading > 360) currHeading -= 360;
+        filter.updatePosition(currHeading);
     }
     
     x = filter.getPosX();
@@ -2071,31 +2072,30 @@ static void handleTurn(PathAction& instruction) {
     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
 
     // determine if we need to turn left or right
-    float distLeft = yaw - instruction.angle_deg;
-    if (distLeft < 0) distLeft += 360;
-    float distRight = instruction.angle_deg - yaw;
-    if (distRight < 0) distRight += 360;
-
     wdt_reset(); // Reset watchdog to prevent timeout during turns
-    if (distLeft < distRight) {
-    while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
+    if (instruction.angle_deg < 0) { // turn left
+    while (currHeading < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
               AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ standardSpeed,
                                            /*direction_B*/ direction_back, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+            currHeading += yaw;
+            if (currHeading < 0) currHeading += 360;
+            else if (currHeading > 360) currHeading -= 360;
             Serial.println(yaw);
     }
-   } else {
-            while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
+   } else { // turn right
+            while (currHeading < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ standardSpeed,
                                            /*direction_B*/ direction_just, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
+            currHeading += yaw;
+            if (currHeading < 0) currHeading += 360;
+            else if (currHeading > 360) currHeading -= 360;
             Serial.println(yaw);
     }
       }
       // call stop it so the car doesn't rotate forever
       ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-      currHeading = yaw; // note that these types do not match and it was like that in the unaltered Elgoo source.
-      // some loss is expected due to the cast, but should be marginal.
 }
 
 static bool isClose(float currentPos, float desiredPos) {

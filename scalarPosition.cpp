@@ -71,17 +71,16 @@ float PositionTracking::getVelYUncert() {
     return this->yVelUncert;
 }
 
-void PositionTracking::updatePosition() {
+void PositionTracking::updatePosition(float heading) {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
     // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
     // voltage from Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue()
     // accel from accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz) This one seems to be external to Application_FunctionSet.cpp
 
-    float heading = 0, voltage = 0, dtSec = 0;
+    float voltage = 0, dtSec = 0;
     int16_t accel, dummy; // dummy passed as garbage value where needed 
     int dt = 0;
 
-    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
     accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy); // set accel, reading x axis only
     voltage = AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
     unsigned long currTime = millis();
