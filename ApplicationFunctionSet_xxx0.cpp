@@ -2074,26 +2074,23 @@ static void handleTurn(PathAction& instruction) {
     // determine if we need to turn left or right
     wdt_reset(); // Reset watchdog to prevent timeout during turns
     if (instruction.angle_deg < 0) { // turn left
-    while (currHeading < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
+    while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
               AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ standardSpeed,
                                            /*direction_B*/ direction_back, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            currHeading += yaw;
-            if (currHeading < 0) currHeading += 360;
-            else if (currHeading > 360) currHeading -= 360;
             Serial.println(yaw);
-    }
+            }
    } else { // turn right
-            while (currHeading < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
+            while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ standardSpeed,
                                            /*direction_B*/ direction_just, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            currHeading += yaw;
-            if (currHeading < 0) currHeading += 360;
-            else if (currHeading > 360) currHeading -= 360;
             Serial.println(yaw);
-    }
+          }
       }
+      currHeading += yaw;
+      if (currHeading < 0) currHeading += 360;
+      else if (currHeading > 360) currHeading -= 360;
       // call stop it so the car doesn't rotate forever
       ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
 }

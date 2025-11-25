@@ -145,5 +145,4 @@ private:
   uint8_t CMD_is_FastLED_setBrightness = 20;
 };
 extern ApplicationFunctionSet Application_FunctionSet;
-extern float currHeading;
 #endif
