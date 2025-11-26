@@ -18,12 +18,13 @@ void setup()
   // put your setup code here, to run once:
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
   wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
+  // Application_FunctionSet.testTurns(); // adds two turns to the queue, shoudl be run during while loop
+  Application_FunctionSet.testMoves(); // moves 100 cm forward
 }
-  int directionRecord = 0;
 
-  // added by Alan
-  PositionTracking kalmanFilter = PositionTracking(0,0,1,1,0,0,1,1,0.01); // set to the default values manually
-
+// int directionRecord = 0;
+PositionTracking kalmanFilter = PositionTracking();
+  
 void loop()
 {
   
@@ -41,8 +42,8 @@ void loop()
   Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis(kalmanFilter);
 
  onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
-//  Serial.print("the car has this many actions queued: ");
-//  Serial.println(Application_FunctionSet.numPathActions());
+  //  Serial.print("the car has this many actions queued: ");
+  //  Serial.println(Application_FunctionSet.numPathActions());
 
     // Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
     // if (onGround) {
@@ -67,12 +68,12 @@ void loop()
       // end of Alan's block
       
       // Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, directionRecord, 50, 12, 150);
-      directionRecord = 1;
+      //directionRecord = 1;
       // Application_FunctionSet.ReportPosition();
     }
     else {
       // Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(stop_it, 0, 0, 1, 150); // Stop the car if it's not on the ground
-      directionRecord = 0;
+      //directionRecord = 0;
       return;
     }
   // Temporarily disable command processing to save memory

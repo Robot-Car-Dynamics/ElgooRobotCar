@@ -11,28 +11,19 @@ extern MPU6050 accelgyro;
 extern MPU6050_getdata AppMPU6050getdata;
 extern DeviceDriverSet_Voltage AppVoltage;
 
-PositionTracking::PositionTracking(
-    float posX = 0, 
-    float velX = 0, 
-    float posXUncert = 1, 
-    float velXUncert = 1, 
-    float posY = 0, 
-    float velY = 0, 
-    float posYUncert = 1, 
-    float velYUncert = 1, 
-    float accelNoise = 0.01) {
+PositionTracking::PositionTracking() {
 
-        this->xPosition = posX;
-        this->xVelocity = velX;
-        this->xPosUncert = posXUncert;
-        this->xVelUncert = velXUncert;
+        this->xPosition = 0;
+        this->xVelocity = 0;
+        this->xPosUncert = 0; // all uncerts previously 1
+        this->xVelUncert = 0;
 
-        this->yPosition = posY;
-        this->yVelocity = velY;
-        this->yVelUncert = posYUncert;
-        this->yPosUncert = posYUncert;
+        this->yPosition = 0;
+        this->yVelocity = 0;
+        this->yVelUncert = 0;
+        this->yPosUncert = 0;
 
-        this->accelNoise = accelNoise;
+        this->accelNoise = 0.5; // about 0.5 m/s noise expected, this results in basically no trust
         this->xCovariance = 0;
         this->yCovariance = 0;
 
@@ -78,10 +69,10 @@ void PositionTracking::updatePosition(float heading) {
     // accel from accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz) This one seems to be external to Application_FunctionSet.cpp
 
     float voltage = 0, dtSec = 0;
-    int16_t accel, dummy; // dummy passed as garbage value where needed 
-    int dt = 0;
+    int16_t accel;
+    unsigned long dt = 0;
 
-    accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy); // set accel, reading x axis only
+    accelgyro.getMotion1(&accel); // set accel, reading x axis only
     voltage = AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
     unsigned long currTime = millis();
     dt = currTime - clockTime; // dt is in milliseconds
@@ -95,7 +86,7 @@ void PositionTracking::updatePosition(float heading) {
 
     // make model predictions
     float magVelocity = sqrt(pow(this->xVelocity, 2) + pow(this->yVelocity, 2)); // a^2 = b^2 + c^2
-    magVelocity = magVelocity + (accel * dtSec); // update with accelerometer info
+    magVelocity = magVelocity + (accelmps * dtSec); // update with accelerometer info
 
     float newVelX, newVelY, accelX, accelY;
 
@@ -132,7 +123,7 @@ void PositionTracking::updatePosition(float heading) {
     */
 
     float vSpeedX, vSpeedY; // speed in x and y determined by voltage
-    motion::velPerAxis(this->voltageToSpeed(voltage), heading, vSpeedX, vSpeedY);
+    motion::velPerAxis(0.235, heading, vSpeedX, vSpeedY); // using a constant 0.235 for 0.235 meters per second
 
     // update X velocity
     float residual = vSpeedX - newVelX;
