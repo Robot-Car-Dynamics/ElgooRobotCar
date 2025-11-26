@@ -23,7 +23,7 @@ PositionTracking::PositionTracking() {
         this->yVelUncert = 0;
         this->yPosUncert = 0;
 
-        this->accelNoise = 0.5; // about 0.5 m/s noise expected, this results in basically no trust
+        this->accelNoise = 0.5; // about 0.5 m/s noise expected. This results in very low trust, which is warranted.
         this->xCovariance = 0;
         this->yCovariance = 0;
 
