@@ -2012,17 +2012,10 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   while (!isClose(x, newX) || !isClose(y, newY)) {
     Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, STANDARDSPEED, STANDARDKP, STANDARDUPPERLIMIT);
     // have to update filter with new position
-    //only update position every 500ms
     currentTime = millis();
-    // if (currentTime - lastUpdateTime >= 500) {
-        lastUpdateTime = currentTime;
-        AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-        currHeading += yaw;
-        if (currHeading < 0) currHeading += 360;
-        else if (currHeading > 360) currHeading -= 360;
-        accelgyro.getMotion1(&accel);
-        filter.updatePosition(currHeading);
-    // }
+    lastUpdateTime = currentTime;
+    accelgyro.getMotion1(&accel);
+    filter.updatePosition(currHeading);
     
     x = filter.getPosX();
     y = filter.getPosY();
@@ -2032,6 +2025,10 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
     Serial.print("Reported Acceleration: "); Serial.println(accel); 
     Serial.print("Target X: "); Serial.print(newX); Serial.print(" Y: "); Serial.println(newY);
   }
+  AppMPU6050getdata.MPU6050_dveGetRotZ(&yaw);
+  currHeading += yaw; // may need to change to currHeading = 0 + yaw
+  if (currHeading < 0) currHeading += 360;
+  else if (currHeading > 360) currHeading -= 360;
   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
 }
 
