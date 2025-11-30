@@ -2089,6 +2089,21 @@ static void ApplicationFunctionSet::testMoves() {
   enqueueAction(*moveForward);
 } 
 
+static void ApplicationFunctionSet::testBasicRoute() {
+  // note that these commands are never deleted
+  PathAction *moveForward = new PathAction {0, 1, 100, 0}; // move 100 cm forward
+  PathAction *turnRight = new PathAction {1, 1, 1, 90}; // turn right 90 degrees
+  PathAction *moveForward2 = new PathAction {0, 1, 100, 0}; // move 100 cm forward
+  PathAction *turnLeft = new PathAction {1, 1, 1, -90}; // turn left 90 degrees
+  PathAction *moveForward3 = new PathAction {0, 1, 100, 0}; // move 100 cm forward
+
+  enqueueAction(*moveForward);
+  enqueueAction(*turnRight);
+  enqueueAction(*moveForward2);
+  enqueueAction(*turnLeft);
+  enqueueAction(*moveForward3);
+}
+
 // -----------------------------------------------------------------------------------------
 
 /*Data analysis on serial port*/
