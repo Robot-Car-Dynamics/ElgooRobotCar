@@ -81,3 +81,9 @@ bool MPU6050_getdata::MPU6050_dveGetEulerAngles(float *Yaw)
   *Yaw = agz;
   return false;
 }
+
+bool MPU6050_getdata::MPU6050_dveGetRotZ(float *Zrot)
+{
+  *Zrot = accelgyro.getRotationZ();
+  return false;
+}

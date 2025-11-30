@@ -190,22 +190,22 @@ int ApplicationFunctionSet::numPathActions(void)
 void ApplicationFunctionSet::handleAction(PositionTracking &filter)
 {
    
-  const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
+  const uint8_t standardSpeed = 50, standardKp = 8, standardUpperLimit = 150;
   #define STANDARDSPEED 50
-  #define STANDARDKP 12
+  #define STANDARDKP 8
   #define STANDARDUPPERLIMIT 150 
   PathAction instruction; // dummy to pass to dequeue
 
   // get head of queue
   if (!dequeueAction(instruction)) {
-    Serial.println("nothin in queue");
+    // Serial.println("nothin in queue");
     return; // return early if nothing found in queue
   }
 
   // check if turn or move command
-    Serial.println("handler started");
+    // Serial.println("handler started");
 
-  Serial.println(instruction.type);
+  // Serial.println(instruction.type);
   switch(instruction.type) {
     case 0: // move command
       handleMove(filter, instruction);
@@ -264,7 +264,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   last_time = current_time;
   
   // Update yaw reading
-  AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw);
+  AppMPU6050getdata.MPU6050_dveGetRotZ(&Yaw);
   
   // Reset conditions - only when changing direction or returning to ground
   if (en != directionRecord || Application_FunctionSet.Car_LeaveTheGround == false)
@@ -290,11 +290,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   last_error = error;
   
   // Anti-windup for integral term with wider window but smaller gain
-  const float max_integral = 15.0;
-  if (abs(error) < 15.0) { // Wider window for smoother integration
-    integral_error += error * dt;
-    integral_error = constrain(integral_error, -max_integral, max_integral);
-  }
+  // const float max_integral = 15.0;
+  // if (abs(error) < 15.0) { // Wider window for smoother integration
+  //   integral_error += error * dt;
+  //   integral_error = constrain(integral_error, -max_integral, max_integral);
+  // }
   
   // PID control with adjusted gains
   float Ki = Kp / 12.0; // Further reduced integral gain
@@ -315,10 +315,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   if (correction_value > 0) {
     // Turning right - slow down right motor more than speeding up left
     R -= correction_value * 0.7; // Reduce right motor by 70% of correction
-    L += correction_value * 0.3; // Increase left motor by 30% of correction
+    L += correction_value * 0.2; // Increase left motor by 20% of correction
   } else {
     // Turning left - slow down left motor more than speeding up right
-    L -= abs(correction_value) * 0.7; // Reduce left motor by 70% of correction
+    L -= abs(correction_value) * 0.8; // Reduce left motor by 70% of correction
     R += abs(correction_value) * 0.3; // Increase right motor by 30% of correction
   }
   
@@ -1943,8 +1943,8 @@ static bool isClose(float currentPos, float desiredPos);
 static uint8_t getPathCount();  // Accessor for pathCount
 
 #define PATH_QUEUE_CAPACITY 5
-#define STANDARDSPEED 50
-#define STANDARDKP 12
+#define STANDARDSPEED 25
+#define STANDARDKP 16
 #define STANDARDUPPERLIMIT 150 
 static PathAction pathQueue[PATH_QUEUE_CAPACITY];
 static uint8_t pathHead = 0; // dequeue index
@@ -1982,8 +1982,8 @@ static bool dequeueAction(PathAction &out)
 static void sendCommandAck(const char *id)
 {
   // Mirror the command handshake identifier directly back to the ESP32
-  String response = String('{') + String(id) + String('}');
-espSerial.print(response);
+  // String response = String('{') + String(id) + String('}');
+espSerial.print(id);
 }
 
 static void handleMove(PositionTracking& filter, PathAction& instruction) {
@@ -2047,14 +2047,14 @@ static void handleTurn(PathAction& instruction) {
               AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ STANDARDSPEED,
                                            /*direction_B*/ direction_back, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            Serial.println(yaw);
+            // Serial.println(yaw);
             }
    } else { // turn right
             while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ STANDARDSPEED,
                                            /*direction_B*/ direction_just, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            Serial.println(yaw);
+            // Serial.println(yaw);
           }
       }
       currHeading += yaw;
@@ -2095,7 +2095,7 @@ static void ApplicationFunctionSet::testMoves() {
 void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(PositionTracking& filter)
 {
   static String SerialPortData = "";
-  uint8_t c = "";
+  
   
   if (espSerial.available() > 0)
   {
@@ -2205,20 +2205,25 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(Posit
 
       case 200: /*<Command：N 200> : Path move command (D1=dir 1=forward/2=backward, D2=distance_cm) */
       {
-        PathAction a;
-        a.type = PATH_MOVE;
-        a.dir = (uint8_t)(doc["D1"] | 1);
-        a.distance_cm = (uint16_t)(doc["D2"] | 0);
-        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
-        // FastLED.show(); // FastLED removed
-        delay(100);
+        PathAction *a = new PathAction {PATH_MOVE,  (uint8_t)(doc["D1"] | 1), (uint16_t)(doc["D2"] | 0), 0}; // move
+
         Serial.println("RECIEVE");
-        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+
+        // a.type = PATH_MOVE;
+        // a.dir = (uint8_t)(doc["D1"] | 1);
+        // a.distance_cm = (uint16_t)(doc["D2"] | 0);
+        // AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
         // FastLED.show(); // FastLED removed
         delay(100);
-        if (!enqueueAction(a))
+
+
+
+        // AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+        // FastLED.show(); // FastLED removed
+        delay(100);
+        if (!enqueueAction(*a))
         {
-          Serial.print("{\"err\":\"overflow\"}");
+          // Serial.print("{\"err\":\"overflow\"}");
         }
         else
         {

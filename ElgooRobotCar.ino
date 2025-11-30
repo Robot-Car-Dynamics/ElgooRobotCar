@@ -17,7 +17,7 @@ void setup()
 {
   // put your setup code here, to run once:
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
-  wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
+  // wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
   // Application_FunctionSet.testTurns(); // adds two turns to the queue, shoudl be run during while loop
   Application_FunctionSet.testMoves(); // moves 100 cm forward
 }
@@ -48,6 +48,7 @@ void loop()
     // Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
     // if (onGround) {
 
+   
       // by Alan
       // kalmanFilter.updatePosition(Application_FunctionSet.currHeading); // updatePosition is now internal and does not need external help
       if (Application_FunctionSet.numPathActions() > 0) {
@@ -55,7 +56,6 @@ void loop()
         // will not return until action in front of queue is complete
         // above call handles updating filter
       // }
-
       // // find heading, acceleration, dt, and voltage
       // Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
      // accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy) // set accel, reading x axis only
@@ -74,7 +74,7 @@ void loop()
     else {
       // Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(stop_it, 0, 0, 1, 150); // Stop the car if it's not on the ground
       //directionRecord = 0;
-      return;
+
     }
   // Temporarily disable command processing to save memory
   // Application_FunctionSet.CMD_ServoControl_xxx0();
