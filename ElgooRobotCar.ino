@@ -19,7 +19,7 @@ void setup()
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
   // wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
   // Application_FunctionSet.testTurns(); // adds two turns to the queue, shoudl be run during while loop
-  Application_FunctionSet.testMoves(); // moves 100 cm forward
+  Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
 }
 
 // int directionRecord = 0;
