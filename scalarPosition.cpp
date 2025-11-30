@@ -94,8 +94,8 @@ void PositionTracking::updatePosition(float heading) {
     // JUST CALL COSINE AND SIN, NO CMATH.H IN ARDUINO
     motion::velPerAxis(accelmps, heading, accelX, accelY); // sets accelX and accelY appropriately
 
-    float newPosX = this->xPosition + (this->xVelocity + (0.5 * accelX * pow(dtSec, 2))); // this averages old and new accel in position update
-    float newPosY = this->yPosition + (this->yVelocity + (0.5 * accelY * pow(dtSec, 2)));
+    float newPosX = xPosition + xVelocity * dtSec + 0.5 * accelX * dtSec * dtSec;
+    float newPosY = yPosition + yVelocity * dtSec + 0.5 * accelY * dtSec * dtSec;
 
     float newPosXUncert = this->xPosUncert + (2 * this->xCovariance * dtSec) + (this->xVelUncert * pow(dtSec, 2)) + (pow(dtSec, 4) / 4) * this->accelNoise;
     float newPosYUncert = this->yPosUncert + (2 * this->yCovariance * dtSec) + (this->yVelUncert * pow(dtSec, 2)) + (pow(dtSec, 4) / 4) * this->accelNoise;
