@@ -62,7 +62,7 @@ float PositionTracking::getVelYUncert() {
     return this->yVelUncert;
 }
 
-void PositionTracking::updatePosition(float heading) {
+void PositionTracking::updatePosition(float heading, unsigned char internalSpeed) {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
     // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
     // voltage from Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue()
@@ -123,7 +123,7 @@ void PositionTracking::updatePosition(float heading) {
     */
 
     float vSpeedX, vSpeedY; // speed in x and y determined by voltage
-    motion::velPerAxis(0.235, heading, vSpeedX, vSpeedY); // using a constant 0.235 for 0.235 meters per second
+    motion::velPerAxis(internalSpeedToMPS(internalSpeed), heading, vSpeedX, vSpeedY); // using a constant 0.235 for 0.235 meters per second
 
     // update X velocity
     float residual = vSpeedX - newVelX;
@@ -172,4 +172,10 @@ float PositionTracking::voltageToSpeed(float voltage) {
     // returns 0.235 to represent 0.235 meters per second, the approximate speed of the car as measured
     // may need to increase some, since the car didn't go in a straight line exactly
     return 0.235;
+}
+
+float PositionTracking::internalSpeedToMPS(unsigned char internalSpeed) {
+    // linear approximation found experimentally through testing
+    // depends on current tuning of PID
+    return (internalSpeed * 0.004308) - 0.033;
 }

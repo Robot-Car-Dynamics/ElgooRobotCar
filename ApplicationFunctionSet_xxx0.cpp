@@ -186,14 +186,12 @@ int ApplicationFunctionSet::numPathActions(void)
     return getPathCount();
 }
 
+#define STANDARDSPEED 50
+#define STANDARDKP 8
+#define STANDARDUPPERLIMIT 150 
 // Member function wrapper to call the static handleAction
 void ApplicationFunctionSet::handleAction(PositionTracking &filter)
 {
-   
-  const uint8_t standardSpeed = 50, standardKp = 8, standardUpperLimit = 150;
-  #define STANDARDSPEED 50
-  #define STANDARDKP 8
-  #define STANDARDUPPERLIMIT 150 
   PathAction instruction; // dummy to pass to dequeue
 
   // get head of queue
@@ -1943,9 +1941,6 @@ static bool isClose(float currentPos, float desiredPos);
 static uint8_t getPathCount();  // Accessor for pathCount
 
 #define PATH_QUEUE_CAPACITY 5
-#define STANDARDSPEED 25
-#define STANDARDKP 16
-#define STANDARDUPPERLIMIT 150 
 static PathAction pathQueue[PATH_QUEUE_CAPACITY];
 static uint8_t pathHead = 0; // dequeue index
 static uint8_t pathTail = 0; // enqueue index
@@ -2015,7 +2010,7 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
     currentTime = millis();
     lastUpdateTime = currentTime;
     accelgyro.getMotion1(&accel);
-    filter.updatePosition(currHeading);
+    filter.updatePosition(currHeading, STANDARDSPEED);
     
     x = filter.getPosX();
     y = filter.getPosY();
