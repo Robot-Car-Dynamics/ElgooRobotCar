@@ -2025,37 +2025,41 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
     Serial.print("Current X: "); Serial.print(x); Serial.print(" Y: "); Serial.println(y);
     Serial.print("Reported Acceleration: "); Serial.println(accel); 
     Serial.print("Target X: "); Serial.print(newX); Serial.print(" Y: "); Serial.println(newY);
+    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // continuously monitor yaw to update currHeading at the end
+    // updating in the while loop is required due to smoothing algorithm
   }
   AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+  currHeading = yaw; // update heading to match drift during movement
 }
 
 static void handleTurn(PathAction& instruction) {
   // call the same movement function but with left or right
-    float yaw;
-    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
 
     // determine if we need to turn left or right
+    int16_t distLeft, distRight;
+    distLeft = currHeading - instruction.angle_deg;
+    distRight = instruction.angle_deg - currHeading;
+    if (distLeft < 0) distLeft += 360;
+    if (distRight < 0) distRight += 360;
     wdt_reset(); // Reset watchdog to prevent timeout during turns
-    if (instruction.angle_deg < 0) { // turn left
-    while (yaw < instruction.angle_deg - 2 || yaw > instruction.angle_deg + 2) {
-              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ STANDARDSPEED,
-                                           /*direction_B*/ direction_back, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
-            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            Serial.println(yaw);
+    if (distLeft < distRight) { // turn left
+    while (currHeading < instruction.angle_deg - 2 || currHeading > instruction.angle_deg + 2) {
+              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ STANDARDSPEED / 2,
+                                           /*direction_B*/ direction_back, /*speed_B*/ STANDARDSPEED / 2, /*controlED*/ control_enable); //Motor control
+            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&currHeading);
+            Serial.println(currHeading);
             }
    } else { // turn right
-            while (yaw < instruction.angle_deg - 2 || yaw > instruction.angle_deg + 2) {
-             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ STANDARDSPEED,
-                                           /*direction_B*/ direction_just, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
-            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            Serial.println(yaw);
+            while (currHeading < instruction.angle_deg - 2 || currHeading > instruction.angle_deg + 2) {
+             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ STANDARDSPEED / 2,
+                                           /*direction_B*/ direction_just, /*speed_B*/ STANDARDSPEED / 2, /*controlED*/ control_enable); //Motor control
+            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&currHeading);
+            Serial.println(currHeading);
           }
       }
-      currHeading = yaw;
-
-      // call stop it so the car doesn't rotate forever
-      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+    // call stop it so the car doesn't rotate forever
+    ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
 }
 
 static bool isClose(float currentPos, float desiredPos) {

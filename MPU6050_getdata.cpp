@@ -66,12 +66,15 @@ bool MPU6050_getdata::MPU6050_calibration(void)
   // gzo = accelgyro.getRotationZ();
   return false;
 }
+#define ALPHA 0.2
 bool MPU6050_getdata::MPU6050_dveGetEulerAngles(float *Yaw)
 {
   unsigned long now = millis();           //Record the current time(ms)
   dt = (now - lastTime) / 1000.0;         //Caculate the derivative time(s)
   lastTime = now;                         //Record the last sampling time(ms)
   gz = accelgyro.getRotationZ();          //Read the raw values of the six axes
+  gz = ALPHA * gz + (1-ALPHA) * oldGz;    // filter against previous gz for smoothing effect
+  oldGz = gz;                             // set oldGz to use on next call
   float gyroz = -(gz - gzo) / 131.0 * dt; //z-axis angular velocity
   if (fabs(gyroz) < 0.05)                 //Clear instant zero drift signal
   {
