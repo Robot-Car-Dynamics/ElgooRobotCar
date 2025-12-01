@@ -23,7 +23,7 @@ PositionTracking::PositionTracking() {
         this->yVelUncert = 0;
         this->yPosUncert = 0;
 
-        this->accelNoise = 0.5; // about 0.5 m/s noise expected. This results in very low trust, which is warranted.
+        this->accelNoise = .9; // about 0.5 m/s noise expected. This results in very low trust, which is warranted.
         this->xCovariance = 0;
         this->yCovariance = 0;
 
@@ -61,7 +61,7 @@ float PositionTracking::getVelY() {
 float PositionTracking::getVelYUncert() {
     return this->yVelUncert;
 }
-
+#define MODELTRUST 0.01f // between 0 and 1, higher means trust model more
 void PositionTracking::updatePosition(float heading, unsigned char internalSpeed) {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
     // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
@@ -127,7 +127,7 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
 
     // update X velocity
     float residual = vSpeedX - newVelX;
-    float innovCov = newVelXUncert + 0.05; // 0.05 represents unceratinty of speed guess. 0.05 is very low and indicates high certainty
+    float innovCov = newVelXUncert + MODELTRUST; // 0.05 represents unceratinty of speed guess. 0.05 is very low and indicates high certainty
     // this represents a range of about 0.22 m/s in velocity
     float kalmanGain = newVelXUncert / innovCov;
     newVelX = newVelX + kalmanGain * residual;
@@ -135,21 +135,21 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
 
     // update X position, reusing some variables to save memory space
     residual = ((vSpeedX * dtSec) + this->xPosition) - newPosX; // old position + (speed * dtSec) - predicted position
-    innovCov = newPosXUncert + 0.05; // 0.05 once again being very low.
+    innovCov = newPosXUncert + MODELTRUST; // 0.05 once again being very low.
     kalmanGain = newPosXUncert / innovCov;
     newPosX = newPosX + kalmanGain * residual;
     newPosXUncert = (1 - kalmanGain) * newPosXUncert;
 
     // update Y velocity
     residual = vSpeedY - newVelY;
-    innovCov = newVelYUncert + 0.05;
+    innovCov = newVelYUncert + MODELTRUST;
     kalmanGain = newVelYUncert / innovCov;
     newVelY = newVelY + kalmanGain * residual;
     newVelYUncert = (1 - kalmanGain) * newVelYUncert;
 
     // update Y position
     residual = ((vSpeedY * dtSec) + this->yPosition) - newPosY;
-    innovCov = newPosYUncert + 0.05;
+    innovCov = newPosYUncert + MODELTRUST;
     kalmanGain = newPosYUncert / innovCov;
     newPosY = newPosY + kalmanGain * residual;
     newPosYUncert = (1 - kalmanGain) * newPosYUncert;
@@ -166,6 +166,8 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
     this->yPosUncert = newPosYUncert;
     this->yVelUncert = newVelYUncert;
     this->yCovariance = newYCovariance;
+    Serial.print("X_PosUncert: "); Serial.println(getPosXUncert());
+    Serial.print("Y_PosUncert: "); Serial.println(getPosYUncert());
 }
 
 float PositionTracking::voltageToSpeed(float voltage) {
@@ -177,5 +179,5 @@ float PositionTracking::voltageToSpeed(float voltage) {
 float PositionTracking::internalSpeedToMPS(unsigned char internalSpeed) {
     // linear approximation found experimentally through testing
     // depends on current tuning of PID
-    return (internalSpeed * 0.004308) - 0.033;
+    return (internalSpeed * 0.004308) - 0.0394;
 }

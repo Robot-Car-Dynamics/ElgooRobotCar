@@ -247,7 +247,7 @@ bool ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLeaveTheGround(
 */
 void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit)
 {
-  static float Yaw; //Yaw
+  static float Yaw1; //Yaw
   static float yaw_So = 0; // Target heading reference
   static float initial_Yaw = 0; // Initial heading when starting movement
   static float integral_error = 0; // Integral of error for I term
@@ -262,22 +262,22 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   last_time = current_time;
   
   // Update yaw reading
-  AppMPU6050getdata.MPU6050_dveGetRotZ(&Yaw);
+  AppMPU6050getdata.MPU6050_dveGetRotZ(&Yaw1);
   
   // Reset conditions - only when changing direction or returning to ground
   if (en != directionRecord || Application_FunctionSet.Car_LeaveTheGround == false)
   {
     en = directionRecord;
     if (last_direction != directionRecord) {  // Only reset reference if direction actually changed
-      initial_Yaw = Yaw;  // Store initial heading
-      yaw_So = Yaw;      // Set target heading
+      initial_Yaw = Yaw1;  // Store initial heading
+      yaw_So = Yaw1;      // Set target heading
       integral_error = 0; // Reset integral term
       last_direction = directionRecord;
     }
   }
 
   // Calculate error
-  float error = Yaw - yaw_So;
+  float error = Yaw1 - yaw_So;
   
   // Normalize error to -180 to +180 range
   while (error > 180) error -= 360;
@@ -1996,22 +1996,28 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   int16_t accel;
   // determine desired position based on current x, y, and heading
   float headingRads = (PI * currHeading) / 180;
-  float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
-  float newX = sin(headingRads) * instruction.distance_cm / 100.0;
+  float newY = filter.getPosY() + cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
+  float newX = filter.getPosX() + sin(headingRads) * instruction.distance_cm / 100.0;
 
   accelgyro.getMotion1(&accel);
 
   static unsigned long lastUpdateTime = 0;
   unsigned long currentTime =0;
+  bool firstRun = true;
   wdt_reset(); // Reset watchdog to prevent timeout during long movements
+  
   while (!isClose(x, newX) || !isClose(y, newY)) {
     Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, STANDARDSPEED, STANDARDKP, STANDARDUPPERLIMIT);
     // have to update filter with new position
     currentTime = millis();
-    lastUpdateTime = currentTime;
     accelgyro.getMotion1(&accel);
+    if(firstRun) {
+      firstRun = false;
+      delay(400);
+    } 
+    lastUpdateTime = currentTime;
     filter.updatePosition(currHeading, STANDARDSPEED);
-    
+   
     x = filter.getPosX();
     y = filter.getPosY();
     xUncert = filter.getPosXUncert();
@@ -2054,7 +2060,7 @@ static void handleTurn(PathAction& instruction) {
 
 static bool isClose(float currentPos, float desiredPos) {
   // checks if the position is reasonably close to desired position
-  return (currentPos > desiredPos - 0.25 && currentPos < desiredPos + 0.25);
+  return (currentPos > desiredPos - 0.01 && currentPos < desiredPos + 0.01);
 }
 
 static void ApplicationFunctionSet::testTurns() {
@@ -2072,7 +2078,7 @@ static void ApplicationFunctionSet::testTurns() {
 }
 
 static void ApplicationFunctionSet::testMoves() {
-  PathAction *moveForward = new PathAction {0, 1, 1000, 0}; // move 1000 cm forward
+  PathAction *moveForward = new PathAction {0, 1, 300, 0}; // move 100 cm forward
 
   enqueueAction(*moveForward);
 } 
@@ -2082,7 +2088,7 @@ static void ApplicationFunctionSet::testBasicRoute() {
   PathAction *moveForward = new PathAction {0, 1, 100, 0}; // move 100 cm forward
   PathAction *turnRight = new PathAction {1, 1, 1, 90}; // turn right 90 degrees
   PathAction *moveForward2 = new PathAction {0, 1, 100, 0}; // move 100 cm forward
-  PathAction *turnLeft = new PathAction {1, 1, 1, -90}; // turn left 90 degrees
+  PathAction *turnLeft = new PathAction {1, 1, 1, 270}; // turn left 90 degrees
   PathAction *moveForward3 = new PathAction {0, 1, 100, 0}; // move 100 cm forward
 
   enqueueAction(*moveForward);

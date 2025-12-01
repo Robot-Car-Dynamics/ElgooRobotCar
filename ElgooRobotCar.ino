@@ -19,15 +19,19 @@ void setup()
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
   // wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
   // Application_FunctionSet.testTurns(); // adds two turns to the queue, shoudl be run during while loop
-  Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
-}
+  // Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
+  Application_FunctionSet.testMoves(); // moves 100 cm forward
+  
+  uint8_t starttime = millis(); // initialize clock
 
+}
+uint8_t now;
 // int directionRecord = 0;
 PositionTracking kalmanFilter = PositionTracking();
   
 void loop()
 {
-  
+
   wdt_reset();
   Application_FunctionSet.ApplicationFunctionSet_SensorDataUpdate();
   // Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
@@ -51,8 +55,13 @@ void loop()
    
       // by Alan
       // kalmanFilter.updatePosition(Application_FunctionSet.currHeading); // updatePosition is now internal and does not need external help
-      if (Application_FunctionSet.numPathActions() > 0) {
-        Application_FunctionSet.handleAction(kalmanFilter);
+      if (Application_FunctionSet.numPathActions() > 0 ) {
+        static unsigned long lastActionTime = 0;
+        unsigned long currentTime = millis();
+        if (currentTime - lastActionTime >= 1000) { // Check if 1 second has passed
+            Application_FunctionSet.handleAction(kalmanFilter);
+            lastActionTime = currentTime; // Update the last action time
+        }
         // will not return until action in front of queue is complete
         // above call handles updating filter
       // }
