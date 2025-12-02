@@ -23,7 +23,7 @@ PositionTracking::PositionTracking() {
         this->yVelUncert = 0;
         this->yPosUncert = 0;
 
-        this->accelNoise = .9; // about 0.5 m/s noise expected. This results in very low trust, which is warranted.
+        this->accelNoise = 1.0; // about 0.5 m/s noise expected. This results in very low trust, which is warranted.
         this->xCovariance = 0;
         this->yCovariance = 0;
 
@@ -61,7 +61,7 @@ float PositionTracking::getVelY() {
 float PositionTracking::getVelYUncert() {
     return this->yVelUncert;
 }
-#define MODELTRUST 0.01f // between 0 and 1, higher means trust model more
+#define MODELTRUST 0.001f // between 0 and 1, higher means trust model more
 void PositionTracking::updatePosition(float heading, unsigned char internalSpeed) {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
     // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
@@ -179,5 +179,5 @@ float PositionTracking::voltageToSpeed(float voltage) {
 float PositionTracking::internalSpeedToMPS(unsigned char internalSpeed) {
     // linear approximation found experimentally through testing
     // depends on current tuning of PID
-    return (internalSpeed * 0.004308) - 0.0394;
+    return internalSpeed * 0.004308 - 0.0394; // was internalSpeed * 0.004308 - 0.0394
 }

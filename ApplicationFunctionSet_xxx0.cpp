@@ -2033,6 +2033,7 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   currHeading = yaw; // update heading to match drift during movement
 }
 
+#define TOLERANCE 1.0
 static void handleTurn(PathAction& instruction) {
   // call the same movement function but with left or right
 
@@ -2044,16 +2045,16 @@ static void handleTurn(PathAction& instruction) {
     if (distRight < 0) distRight += 360;
     wdt_reset(); // Reset watchdog to prevent timeout during turns
     if (distLeft < distRight) { // turn left
-    while (currHeading < instruction.angle_deg - 2 || currHeading > instruction.angle_deg + 2) {
-              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ STANDARDSPEED / 2,
-                                           /*direction_B*/ direction_back, /*speed_B*/ STANDARDSPEED / 2, /*controlED*/ control_enable); //Motor control
+    while (currHeading < instruction.angle_deg - TOLERANCE || currHeading > instruction.angle_deg + TOLERANCE) {
+              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ STANDARDSPEED,
+                                           /*direction_B*/ direction_back, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&currHeading);
             Serial.println(currHeading);
             }
    } else { // turn right
-            while (currHeading < instruction.angle_deg - 2 || currHeading > instruction.angle_deg + 2) {
-             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ STANDARDSPEED / 2,
-                                           /*direction_B*/ direction_just, /*speed_B*/ STANDARDSPEED / 2, /*controlED*/ control_enable); //Motor control
+            while (currHeading < instruction.angle_deg - TOLERANCE || currHeading > instruction.angle_deg + TOLERANCE) {
+             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ STANDARDSPEED,
+                                           /*direction_B*/ direction_just, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
             AppMPU6050getdata.MPU6050_dveGetEulerAngles(&currHeading);
             Serial.println(currHeading);
           }
@@ -2064,12 +2065,12 @@ static void handleTurn(PathAction& instruction) {
 
 static bool isClose(float currentPos, float desiredPos) {
   // checks if the position is reasonably close to desired position
-  return (currentPos > desiredPos - 0.01 && currentPos < desiredPos + 0.01);
+  return (currentPos > desiredPos - 0.02 && currentPos < desiredPos + 0.02);
 }
 
 static void ApplicationFunctionSet::testTurns() {
-  PathAction *turnRight = new PathAction {1, 1, 1, 45}; // turn right 45 degrees
-  PathAction *turnLeft = new PathAction {1, 1, 1, 10}; // turn back 55 degrees
+  PathAction *turnRight = new PathAction {1, 1, 1, 179}; // turn right 179 degrees
+  PathAction *turnLeft = new PathAction {1, 1, 1, 1}; // turn back 178 degrees
 
   enqueueAction(*turnRight);
   enqueueAction(*turnLeft);
@@ -2089,11 +2090,11 @@ static void ApplicationFunctionSet::testMoves() {
 
 static void ApplicationFunctionSet::testBasicRoute() {
   // note that these commands are never deleted
-  PathAction *moveForward = new PathAction {0, 1, 100, 0}; // move 100 cm forward
+  PathAction *moveForward = new PathAction {0, 1, 200, 0}; // move 100 cm forward
   PathAction *turnRight = new PathAction {1, 1, 1, 90}; // turn right 90 degrees
-  PathAction *moveForward2 = new PathAction {0, 1, 100, 0}; // move 100 cm forward
-  PathAction *turnLeft = new PathAction {1, 1, 1, 270}; // turn left 90 degrees
-  PathAction *moveForward3 = new PathAction {0, 1, 100, 0}; // move 100 cm forward
+  PathAction *moveForward2 = new PathAction {0, 1, 200, 0}; // move 100 cm forward
+  PathAction *turnLeft = new PathAction {1, 1, 1, 0}; // turn left 90 degrees
+  PathAction *moveForward3 = new PathAction {0, 1, 200, 0}; // move 100 cm forward
 
   enqueueAction(*moveForward);
   enqueueAction(*turnRight);

@@ -20,7 +20,7 @@ void setup()
   // wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
   // Application_FunctionSet.testTurns(); // adds two turns to the queue, shoudl be run during while loop
   // Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
-  Application_FunctionSet.testMoves(); // moves 100 cm forward
+  Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
   
   uint8_t starttime = millis(); // initialize clock
 
