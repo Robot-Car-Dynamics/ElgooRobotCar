@@ -70,10 +70,17 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
 
     float voltage = 0, dtSec = 0;
     int16_t accel;
+    int sum = 0;
     unsigned long dt = 0;
 
-    accelgyro.getMotion1(&accel); // set accel, reading x axis only
-    voltage = AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
+    #define TIMES 10
+    for (unsigned char i = 0; i < TIMES; i++) { // get average of 10 accel readings to reduce noise
+        accelgyro.getMotion1(&accel); // set accel, reading x axis only
+        sum += accel;
+    }
+
+    accel = sum / times; 
+
     unsigned long currTime = millis();
     dt = currTime - clockTime; // dt is in milliseconds
     dtSec = dt / 1000.0; // dtSec is in seconds
