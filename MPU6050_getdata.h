@@ -15,10 +15,11 @@ public:
   bool MPU6050_dveInit(void);
   bool MPU6050_calibration(void);
   bool MPU6050_dveGetEulerAngles(float *Yaw);
+  bool MPU6050_dveGetRotZ(float *Zrot);
 
 public:
   //int16_t ax, ay, az, gx, gy, gz;
-  int16_t gz;
+  int16_t gz, oldGz = 0;
   //float pith, roll, yaw;
   unsigned long now, lastTime = 0;
   float dt;      //Derivative time

@@ -52,6 +52,9 @@ void ApplicationFunctionSet_SmartRobotCarMotionControl(SmartRobotCarMotionContro
   bool ApplicationFunctionSet_SmartRobotCarLeaveTheGround(void);
   void handleAction(PositionTracking &posTracker);
   int numPathActions(void);
+  static void testTurns(); // runs a set of hardcoded turns
+  static void testMoves(); // runs a set single forward move
+  static void testBasicRoute(); // a basic route with 2 turns and 3 moves
 
 
 public: /*CMD*/

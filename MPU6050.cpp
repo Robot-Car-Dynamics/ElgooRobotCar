@@ -625,6 +625,12 @@ void MPU6050::getMotion6(int16_t *ax, int16_t *ay, int16_t *az, int16_t *gx,
   *gy = (((int16_t)buffer[10]) << 8) | buffer[11];
   *gz = (((int16_t)buffer[12]) << 8) | buffer[13];
 }
+void MPU6050::getMotion1(int16_t *ax) {
+  // cut down version of above function designed to get only ax. 
+  // Reduces stack usage by removing unused params
+  I2Cdev::readBytes(devAddr, MPU6050_RA_ACCEL_XOUT_H, 14, buffer);
+  *ax = (((int16_t)buffer[0]) << 8) | buffer[1];
+}
 void MPU6050::getAcceleration(int16_t *x, int16_t *y, int16_t *z) {
   I2Cdev::readBytes(devAddr, MPU6050_RA_ACCEL_XOUT_H, 6, buffer);
   *x = (((int16_t)buffer[0]) << 8) | buffer[1];

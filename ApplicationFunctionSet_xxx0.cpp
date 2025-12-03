@@ -186,23 +186,24 @@ int ApplicationFunctionSet::numPathActions(void)
     return getPathCount();
 }
 
+#define STANDARDSPEED 50
+#define STANDARDKP 12
+#define STANDARDUPPERLIMIT 150 
 // Member function wrapper to call the static handleAction
 void ApplicationFunctionSet::handleAction(PositionTracking &filter)
 {
-   
-  const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
   PathAction instruction; // dummy to pass to dequeue
 
   // get head of queue
   if (!dequeueAction(instruction)) {
-    Serial.println("nothin in queue");
+    // Serial.println("nothin in queue");
     return; // return early if nothing found in queue
   }
 
   // check if turn or move command
-    Serial.println("handler started");
+    // Serial.println("handler started");
 
-  Serial.println(instruction.type);
+  // Serial.println(instruction.type);
   switch(instruction.type) {
     case 0: // move command
       handleMove(filter, instruction);
@@ -246,7 +247,7 @@ bool ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLeaveTheGround(
 */
 void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit)
 {
-  static float Yaw; //Yaw
+  static float Yaw1; //Yaw
   static float yaw_So = 0; // Target heading reference
   static float initial_Yaw = 0; // Initial heading when starting movement
   static float integral_error = 0; // Integral of error for I term
@@ -261,22 +262,22 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   last_time = current_time;
   
   // Update yaw reading
-  AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw);
+  AppMPU6050getdata.MPU6050_dveGetRotZ(&Yaw1);
   
   // Reset conditions - only when changing direction or returning to ground
   if (en != directionRecord || Application_FunctionSet.Car_LeaveTheGround == false)
   {
     en = directionRecord;
     if (last_direction != directionRecord) {  // Only reset reference if direction actually changed
-      initial_Yaw = Yaw;  // Store initial heading
-      yaw_So = Yaw;      // Set target heading
+      initial_Yaw = Yaw1;  // Store initial heading
+      yaw_So = Yaw1;      // Set target heading
       integral_error = 0; // Reset integral term
       last_direction = directionRecord;
     }
   }
 
   // Calculate error
-  float error = Yaw - yaw_So;
+  float error = Yaw1 - yaw_So;
   
   // Normalize error to -180 to +180 range
   while (error > 180) error -= 360;
@@ -287,11 +288,11 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   last_error = error;
   
   // Anti-windup for integral term with wider window but smaller gain
-  const float max_integral = 15.0;
-  if (abs(error) < 15.0) { // Wider window for smoother integration
-    integral_error += error * dt;
-    integral_error = constrain(integral_error, -max_integral, max_integral);
-  }
+  // const float max_integral = 15.0;
+  // if (abs(error) < 15.0) { // Wider window for smoother integration
+  //   integral_error += error * dt;
+  //   integral_error = constrain(integral_error, -max_integral, max_integral);
+  // }
   
   // PID control with adjusted gains
   float Ki = Kp / 12.0; // Further reduced integral gain
@@ -312,10 +313,10 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SmartRobotCarLinearMotionCon
   if (correction_value > 0) {
     // Turning right - slow down right motor more than speeding up left
     R -= correction_value * 0.7; // Reduce right motor by 70% of correction
-    L += correction_value * 0.3; // Increase left motor by 30% of correction
+    L += correction_value * 0.2; // Increase left motor by 20% of correction
   } else {
     // Turning left - slow down left motor more than speeding up right
-    L -= abs(correction_value) * 0.7; // Reduce left motor by 70% of correction
+    L -= abs(correction_value) * 0.8; // Reduce left motor by 70% of correction
     R += abs(correction_value) * 0.3; // Increase right motor by 30% of correction
   }
   
@@ -1939,13 +1940,13 @@ static void handleTurn(PathAction& instruction);
 static bool isClose(float currentPos, float desiredPos);
 static uint8_t getPathCount();  // Accessor for pathCount
 
-#define PATH_QUEUE_CAPACITY 16
+#define PATH_QUEUE_CAPACITY 5
 static PathAction pathQueue[PATH_QUEUE_CAPACITY];
 static uint8_t pathHead = 0; // dequeue index
 static uint8_t pathTail = 0; // enqueue index
 static uint8_t pathCount = 0;
 
-static float currHeading = -1.0; // stores current heading for reuse in movement commands.
+static float currHeading = 0; // stores current heading for reuse in movement commands.
 
 // Accessor function for pathCount
 static uint8_t getPathCount() {
@@ -1976,131 +1977,122 @@ static bool dequeueAction(PathAction &out)
 static void sendCommandAck(const char *id)
 {
   // Mirror the command handshake identifier directly back to the ESP32
-  String response = String('{') + String(id) + String('}');
-espSerial.print(response);
+  // String response = String('{') + String(id) + String('}');
+espSerial.print(id);
 }
 
 static void handleMove(PositionTracking& filter, PathAction& instruction) {
   // move the car forward/backwards to the current direction
-  // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
-  const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
-  float yaw;
-  if (currHeading == -1.0) {
-    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-    currHeading = yaw; // note that yaw is in degrees
-  }
+  float yaw = 0;
+
   SmartRobotCarMotionControl direction;
   if (instruction.dir == 1) { // want to go forward
     direction = Forward;
   } else if (instruction.dir == 2) { // want to go backwards
     direction = Backward;
   } else return; // return early if invalid dir
-  float x = filter.getPosX(), y = filter.getPosY();
+  float x = filter.getPosX(), y = filter.getPosY(), xUncert = filter.getPosXUncert(), yUncert = filter.getPosYUncert();
+  int16_t accel;
   // determine desired position based on current x, y, and heading
   float headingRads = (PI * currHeading) / 180;
-  float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
-  float newX = sin(headingRads) * instruction.distance_cm / 100.0;
+  float newY = filter.getPosY() + cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
+  float newX = filter.getPosX() + sin(headingRads) * instruction.distance_cm / 100.0;
+
+  accelgyro.getMotion1(&accel);
 
   static unsigned long lastUpdateTime = 0;
   unsigned long currentTime =0;
+  bool firstRun = true;
   wdt_reset(); // Reset watchdog to prevent timeout during long movements
+  
   while (!isClose(x, newX) || !isClose(y, newY)) {
-    Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
-    // have to update filter with new position
-    //only update position every 500ms
+    Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, STANDARDSPEED, STANDARDKP, STANDARDUPPERLIMIT);
     currentTime = millis();
-    if (currentTime - lastUpdateTime >= 500) {
-        filter.updatePosition();
-        lastUpdateTime = currentTime;
-    }
-    
+    accelgyro.getMotion1(&accel);
+    if(firstRun) {
+      firstRun = false;
+      delay(400);
+    } 
+    lastUpdateTime = currentTime;
+    filter.updatePosition(currHeading, STANDARDSPEED);
+   
     x = filter.getPosX();
     y = filter.getPosY();
+    xUncert = filter.getPosXUncert();
+    yUncert = filter.getPosYUncert();
     Serial.print("Current X: "); Serial.print(x); Serial.print(" Y: "); Serial.println(y);
+    Serial.print("Reported Acceleration: "); Serial.println(accel); 
     Serial.print("Target X: "); Serial.print(newX); Serial.print(" Y: "); Serial.println(newY);
+    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // continuously monitor yaw to update currHeading at the end
+    // updating in the while loop is required due to smoothing algorithm
   }
+  AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
+  currHeading = yaw; // update heading to match drift during movement
 }
 
-// static void handleMove(PositionTracking& filter, PathAction& instruction) {
-//   // move the car forward/backwards to the current direction
-//   // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
-//   const uint8_t standardSpeed = 50, standardKp = 12, standardUpperLimit = 150;
-//   float yaw;
-//   if (currHeading == -1.0) {
-//     AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-//     currHeading = yaw; // note that yaw is in degrees
-//   }
-//   SmartRobotCarMotionControl direction;
-//   if (instruction.dir == 1) { // want to go forward
-//     direction = Forward;
-//   } else if (instruction.dir == 2) { // want to go backwards
-//     direction = Backward;
-//   } else return; // return early if invalid dir
-//   float x = filter.getPosX(), y = filter.getPosY();
-//   // determine desired position based on current x, y, and heading
-//   float headingRads = (PI * currHeading) / 180;
-//   float newY = cos(headingRads) * instruction.distance_cm / 100.0; // position filter uses meters
-//   float newX = sin(headingRads) * instruction.distance_cm / 100.0;
-
-//   static unsigned long lastUpdateTime = 0;
-//   unsigned long currentTime =0;
-//   wdt_reset(); // Reset watchdog to prevent timeout during long movements
-//   while (!isClose(x, newX) || !isClose(y, newY)) {
-//     Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, standardSpeed, standardKp, standardUpperLimit);
-//     // have to update filter with new position
-//     //only update position every 500ms
-//     currentTime = millis();
-//     if (currentTime - lastUpdateTime >= 500) {
-//         filter.updatePosition();
-//         lastUpdateTime = currentTime;
-//     }
-    
-//     x = filter.getPosX();
-//     y = filter.getPosY();
-//     Serial.print("Current X: "); Serial.print(x); Serial.print(" Y: "); Serial.println(y);
-//     Serial.print("Target X: "); Serial.print(newX); Serial.print(" Y: "); Serial.println(newY);
-//   }
-//   ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-// }
-
+#define TOLERANCE 1.0
 static void handleTurn(PathAction& instruction) {
   // call the same movement function but with left or right
-    const uint8_t standardSpeed = 50;
-    float yaw;
-    AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw); // update yaw
 
     // determine if we need to turn left or right
-    float distLeft = yaw - instruction.angle_deg;
+    int16_t distLeft, distRight;
+    distLeft = currHeading - instruction.angle_deg;
+    distRight = instruction.angle_deg - currHeading;
     if (distLeft < 0) distLeft += 360;
-    float distRight = instruction.angle_deg - yaw;
     if (distRight < 0) distRight += 360;
-
     wdt_reset(); // Reset watchdog to prevent timeout during turns
-    if (distLeft < distRight) {
-    while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
-              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ standardSpeed,
-                                           /*direction_B*/ direction_back, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
-            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            Serial.println(yaw);
-    }
-   } else {
-            while (yaw < instruction.angle_deg - 4.5 || yaw > instruction.angle_deg + 4.5) {
-             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ standardSpeed,
-                                           /*direction_B*/ direction_just, /*speed_B*/ standardSpeed, /*controlED*/ control_enable); //Motor control
-            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&yaw);
-            Serial.println(yaw);
-    }
+    if (distLeft < distRight) { // turn left
+    while (currHeading < instruction.angle_deg - TOLERANCE || currHeading > instruction.angle_deg + TOLERANCE) {
+              AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_just, /*speed_A*/ STANDARDSPEED,
+                                           /*direction_B*/ direction_back, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
+            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&currHeading);
+            Serial.println(currHeading);
+            }
+   } else { // turn right
+            while (currHeading < instruction.angle_deg - TOLERANCE || currHeading > instruction.angle_deg + TOLERANCE) {
+             AppMotor.DeviceDriverSet_Motor_control(/*direction_A*/ direction_back, /*speed_A*/ STANDARDSPEED,
+                                           /*direction_B*/ direction_just, /*speed_B*/ STANDARDSPEED, /*controlED*/ control_enable); //Motor control
+            AppMPU6050getdata.MPU6050_dveGetEulerAngles(&currHeading);
+            Serial.println(currHeading);
+          }
       }
-      // call stop it so the car doesn't rotate forever
-      ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
-      currHeading = yaw; // note that these types do not match and it was like that in the unaltered Elgoo source.
-      // some loss is expected due to the cast, but should be marginal.
+    // call stop it so the car doesn't rotate forever
+    ApplicationFunctionSet_SmartRobotCarMotionControl(stop_it, 0);
 }
 
 static bool isClose(float currentPos, float desiredPos) {
   // checks if the position is reasonably close to desired position
-  return (currentPos > desiredPos - 0.25 && currentPos < desiredPos + 0.25);
+  return (currentPos > desiredPos - 0.02 && currentPos < desiredPos + 0.02);
+}
+
+static void ApplicationFunctionSet::testTurns() {
+  PathAction *turnRight = new PathAction {1, 1, 1, 179}; // turn right 179 degrees
+  PathAction *turnLeft = new PathAction {1, 1, 1, 1}; // turn back 178 degrees
+
+  enqueueAction(*turnRight);
+  enqueueAction(*turnLeft);
+}
+
+static void ApplicationFunctionSet::testMoves() {
+  PathAction *moveForward = new PathAction {0, 1, 300, 0}; // move 300 cm forward
+
+  enqueueAction(*moveForward);
+} 
+
+static void ApplicationFunctionSet::testBasicRoute() {
+  // note that these commands are never deleted
+  PathAction *moveForward = new PathAction {0, 1, 200, 0}; // move 200 cm forward
+  PathAction *turnRight = new PathAction {1, 1, 1, 90}; // turn right 90 degrees
+  PathAction *moveForward2 = new PathAction {0, 1, 200, 0}; // move 200 cm forward
+  PathAction *turnLeft = new PathAction {1, 1, 1, 0}; // turn left 90 degrees
+  PathAction *moveForward3 = new PathAction {0, 1, 200, 0}; // move 200 cm forward
+
+  enqueueAction(*moveForward);
+  enqueueAction(*turnRight);
+  enqueueAction(*moveForward2);
+  enqueueAction(*turnLeft);
+  enqueueAction(*moveForward3);
 }
 
 // -----------------------------------------------------------------------------------------
@@ -2109,7 +2101,7 @@ static bool isClose(float currentPos, float desiredPos) {
 void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(PositionTracking& filter)
 {
   static String SerialPortData = "";
-  uint8_t c = "";
+  
   
   if (espSerial.available() > 0)
   {
@@ -2123,7 +2115,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(Posit
     //   SerialPortData = "";
     //   return;
     // }
-    // if (true == SerialPortData.equals("{Factory}") || true == SerialPortData.equals("{WA_NO}") || true == SerialPortData.equals("{WA_OK}")) 
+    // if (true == SerialPortData.equals("{Factory}") || true == SerialPortData.equals("{WA_NO}") || true == SerialPortData.equals("{WA_OK}"))
     // {
     //   SerialPortData = "";
     //   return;
@@ -2219,26 +2211,32 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(Posit
 
       case 200: /*<Command：N 200> : Path move command (D1=dir 1=forward/2=backward, D2=distance_cm) */
       {
-        PathAction a;
-        a.type = PATH_MOVE;
-        a.dir = (uint8_t)(doc["D1"] | 1);
-        a.distance_cm = (uint16_t)(doc["D2"] | 0);
-        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
-        // FastLED.show(); // FastLED removed
-        delay(100);
+        PathAction *a = new PathAction {PATH_MOVE,  (uint8_t)(doc["D1"] | 1), (uint16_t)(doc["D2"] | 0), 0}; // move
+
         Serial.println("RECIEVE");
-        AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+
+        // a.type = PATH_MOVE;
+        // a.dir = (uint8_t)(doc["D1"] | 1);
+        // a.distance_cm = (uint16_t)(doc["D2"] | 0);
+        // AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 255);  // green on
         // FastLED.show(); // FastLED removed
         delay(100);
-        if (!enqueueAction(a))
+
+
+
+        // AppRBG_LED.DeviceDriverSet_RBGLED_Color(NUM_LEDS, 0, 0, 0);  // green on
+        // FastLED.show(); // FastLED removed
+        delay(100);
+        if (!enqueueAction(*a))
         {
-          Serial.print("{\"err\":\"overflow\"}");
+          // Serial.print("{\"err\":\"overflow\"}");
         }
         else
         {
           sendCommandAck(CommandSerialNumber.c_str());
         }
       }
+
         break;
 
       case 201: /*<Command：N 201> : Path turn command (D1=angle_deg) */

@@ -17,71 +17,33 @@ void setup()
 {
   // put your setup code here, to run once:
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
-  wdt_enable(WDTO_8S); // 8 second watchdog timer (maximum)
+  Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
+  
+  uint8_t starttime = millis(); // initialize clock
+
 }
-  int directionRecord = 0;
-
-  // added by Alan
-  PositionTracking kalmanFilter = PositionTracking(0,0,1,1,0,0,1,1,0.01); // set to the default values manually
-
+uint8_t now;
+PositionTracking kalmanFilter = PositionTracking();
+  
 void loop()
 {
-  
+
   wdt_reset();
   Application_FunctionSet.ApplicationFunctionSet_SensorDataUpdate();
-  // Application_FunctionSet.ApplicationFunctionSet_KeyCommand();
-  // Temporarily disable non-essential features to save memory
-  // Application_FunctionSet.ApplicationFunctionSet_RGB(); // Disabled - FastLED removed
-  // Application_FunctionSet.ApplicationFunctionSet_Follow();
-  // Application_FunctionSet.ApplicationFunctionSet_Obstacle();
-  // Application_FunctionSet.ApplicationFunctionSet_Tracking();
-  // Application_FunctionSet.ApplicationFunctionSet_Rocker();
-  // Application_FunctionSet.ApplicationFunctionSet_Standby();
-  // Application_FunctionSet.ApplicationFunctionSet_IRrecv();
   Application_FunctionSet.ApplicationFunctionSet_SerialPortDataAnalysis(kalmanFilter);
 
- onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
-//  Serial.print("the car has this many actions queued: ");
-//  Serial.println(Application_FunctionSet.numPathActions());
-
-    // Application_FunctionSet.ApplicationFunctionSet_PositionTracking();
-    // if (onGround) {
-
-      // by Alan
-      kalmanFilter.updatePosition(); // updatePosition is now internal and does not need external help
-      if (Application_FunctionSet.numPathActions() > 0) {
+  onGround = Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLeaveTheGround();
+  if (Application_FunctionSet.numPathActions() > 0 ) {
+    static unsigned long lastActionTime = 0;
+    unsigned long currentTime = millis();
+    if (currentTime - lastActionTime >= 1000) { // Check if 1 second has passed
         Application_FunctionSet.handleAction(kalmanFilter);
-        // will not return until action in front of queue is complete
-        // above call handles updating filter
-      // }
-
-      // // find heading, acceleration, dt, and voltage
-      // Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&heading); // set heading
-     // accelgyro.getMotion6(&accel, &dummy, &dummy, &dummy, &dummy, &dummy) // set accel, reading x axis only
-      // voltage = Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue(); // set voltage
-      // unsigned long currTime = millis();
-      // dt = currTime - clockTime;
-      // clockTime = currTime;
-
-      // kalmanFilter.updatePosition(heading, accel, dt, voltage);
-      // end of Alan's block
-      
-      // Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(Forward, directionRecord, 50, 12, 150);
-      directionRecord = 1;
-      // Application_FunctionSet.ReportPosition();
+        lastActionTime = currentTime; // Update the last action time
     }
-    else {
-      // Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(stop_it, 0, 0, 1, 150); // Stop the car if it's not on the ground
-      directionRecord = 0;
-      return;
-    }
-  // Temporarily disable command processing to save memory
-  // Application_FunctionSet.CMD_ServoControl_xxx0();
-  // Application_FunctionSet.CMD_MotorControl_xxx0();
-  // Application_FunctionSet.CMD_CarControlTimeLimit_xxx0();
-  // Application_FunctionSet.CMD_CarControlNoTimeLimit_xxx0();
-  // Application_FunctionSet.CMD_MotorControlSpeed_xxx0();
-  // Application_FunctionSet.CMD_LightingControlTimeLimit_xxx0();
-  // Application_FunctionSet.CMD_LightingControlNoTimeLimit_xxx0();
-  // Application_FunctionSet.CMD_ClearAllFunctions_xxx0();
+    // will not return until action in front of queue is complete
+    // above call handles updating filter
+  } else {
+
+  }
+
 }

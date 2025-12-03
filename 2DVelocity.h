@@ -1,7 +1,5 @@
 #ifndef TWODVELOCITY
 #define TWODVELOCITY
-
-// Use Arduino.h for types and math functions instead of math.h/stdint.h
 #include <Arduino.h>
 
 namespace motion {
