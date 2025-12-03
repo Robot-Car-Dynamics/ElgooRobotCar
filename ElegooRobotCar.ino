@@ -17,7 +17,7 @@ void setup()
 {
   // put your setup code here, to run once:
   Application_FunctionSet.ApplicationFunctionSet_Init(); 
-  Application_FunctionSet.testBasicRoute(); // moves 100 cm forward
+  // Application_FunctionSet.testBasicRoute();
   
   uint8_t starttime = millis(); // initialize clock
 
