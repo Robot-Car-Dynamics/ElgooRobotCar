@@ -1983,7 +1983,6 @@ espSerial.print(id);
 
 static void handleMove(PositionTracking& filter, PathAction& instruction) {
   // move the car forward/backwards to the current direction
-  // void ApplicationFunctionSet_SmartRobotCarLinearMotionControl(SmartRobotCarMotionControl direction, uint8_t directionRecord, uint8_t speed, uint8_t Kp, uint8_t UpperLimit);
   float yaw = 0;
 
   SmartRobotCarMotionControl direction;
@@ -2008,7 +2007,6 @@ static void handleMove(PositionTracking& filter, PathAction& instruction) {
   
   while (!isClose(x, newX) || !isClose(y, newY)) {
     Application_FunctionSet.ApplicationFunctionSet_SmartRobotCarLinearMotionControl(direction, currHeading, STANDARDSPEED, STANDARDKP, STANDARDUPPERLIMIT);
-    // have to update filter with new position
     currentTime = millis();
     accelgyro.getMotion1(&accel);
     if(firstRun) {
@@ -2074,27 +2072,21 @@ static void ApplicationFunctionSet::testTurns() {
 
   enqueueAction(*turnRight);
   enqueueAction(*turnLeft);
-  //   struct PathAction {
-  //   uint8_t type; // PathActionType
-  //   uint8_t dir;  // for move: 1 forward, 2 backward
-  //   uint16_t distance_cm; // for move
-  //   int16_t angle_deg;    // for turn
-  //    };
 }
 
 static void ApplicationFunctionSet::testMoves() {
-  PathAction *moveForward = new PathAction {0, 1, 300, 0}; // move 100 cm forward
+  PathAction *moveForward = new PathAction {0, 1, 300, 0}; // move 300 cm forward
 
   enqueueAction(*moveForward);
 } 
 
 static void ApplicationFunctionSet::testBasicRoute() {
   // note that these commands are never deleted
-  PathAction *moveForward = new PathAction {0, 1, 200, 0}; // move 100 cm forward
+  PathAction *moveForward = new PathAction {0, 1, 200, 0}; // move 200 cm forward
   PathAction *turnRight = new PathAction {1, 1, 1, 90}; // turn right 90 degrees
-  PathAction *moveForward2 = new PathAction {0, 1, 200, 0}; // move 100 cm forward
+  PathAction *moveForward2 = new PathAction {0, 1, 200, 0}; // move 200 cm forward
   PathAction *turnLeft = new PathAction {1, 1, 1, 0}; // turn left 90 degrees
-  PathAction *moveForward3 = new PathAction {0, 1, 200, 0}; // move 100 cm forward
+  PathAction *moveForward3 = new PathAction {0, 1, 200, 0}; // move 200 cm forward
 
   enqueueAction(*moveForward);
   enqueueAction(*turnRight);
@@ -2123,7 +2115,7 @@ void ApplicationFunctionSet::ApplicationFunctionSet_SerialPortDataAnalysis(Posit
     //   SerialPortData = "";
     //   return;
     // }
-    // if (true == SerialPortData.equals("{Factory}") || true == SerialPortData.equals("{WA_NO}") || true == SerialPortData.equals("{WA_OK}")) 
+    // if (true == SerialPortData.equals("{Factory}") || true == SerialPortData.equals("{WA_NO}") || true == SerialPortData.equals("{WA_OK}"))
     // {
     //   SerialPortData = "";
     //   return;

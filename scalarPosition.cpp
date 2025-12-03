@@ -15,7 +15,7 @@ PositionTracking::PositionTracking() {
 
         this->xPosition = 0;
         this->xVelocity = 0;
-        this->xPosUncert = 0; // all uncerts previously 1
+        this->xPosUncert = 0;
         this->xVelUncert = 0;
 
         this->yPosition = 0;
@@ -23,7 +23,7 @@ PositionTracking::PositionTracking() {
         this->yVelUncert = 0;
         this->yPosUncert = 0;
 
-        this->accelNoise = 1.0; // about 0.5 m/s noise expected. This results in very low trust, which is warranted.
+        this->accelNoise = 1.0; // about 1 m/s^2 noise expected. This results in very low trust, which is warranted.
         this->xCovariance = 0;
         this->yCovariance = 0;
 
@@ -61,12 +61,9 @@ float PositionTracking::getVelY() {
 float PositionTracking::getVelYUncert() {
     return this->yVelUncert;
 }
-#define MODELTRUST 0.001f // between 0 and 1, higher means trust model more
+#define RECKONINGNOISE 0.001f // between 0 and 1, lower means trust dead reckoning more
 void PositionTracking::updatePosition(float heading, unsigned char internalSpeed) {
     // NOTE: ensure that acceleration and dt are in the same units of time to avoid magnitude errors
-    // Heading in degrees can be grabbed from Application_FunctionSet.AppMPU6050getdata.MPU6050_dveGetEulerAngles(&Yaw)
-    // voltage from Application_FunctionSet.AppVoltage.DeviceDriverSet_Voltage_getAnalogue()
-    // accel from accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz) This one seems to be external to Application_FunctionSet.cpp
 
     float voltage = 0, dtSec = 0;
     int16_t accel;
@@ -79,7 +76,7 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
         sum += accel;
     }
 
-    accel = sum / times; 
+    accel = sum / TIMES;
 
     unsigned long currTime = millis();
     dt = currTime - clockTime; // dt is in milliseconds
@@ -98,7 +95,6 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
     float newVelX, newVelY, accelX, accelY;
 
     motion::velPerAxis(magVelocity, heading, newVelX, newVelY); // sets newVelX and newVelY to appropriate values based on trig
-    // JUST CALL COSINE AND SIN, NO CMATH.H IN ARDUINO
     motion::velPerAxis(accelmps, heading, accelX, accelY); // sets accelX and accelY appropriately
 
     float newPosX = xPosition + xVelocity * dtSec + 0.5 * accelX * dtSec * dtSec;
@@ -118,8 +114,6 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
     // old covariance + velocity uncertainty * dtSec + (dtSec^3 * accel noise / 2)
 
     // update predictions (do filtering)
-    // will compare to expected speed for voltage given. 
-    // This is better than the other way around because acceleration causes motion.
     /*
     Filtering algorithm:
     residual = actual measurement - prediction
@@ -129,34 +123,33 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
     uncertainty update = (1 - kalman gain) * predictedUncertainty
     */
 
-    float vSpeedX, vSpeedY; // speed in x and y determined by voltage
-    motion::velPerAxis(internalSpeedToMPS(internalSpeed), heading, vSpeedX, vSpeedY); // using a constant 0.235 for 0.235 meters per second
+    float vSpeedX, vSpeedY; // speed in x and y determined by dead reckoning
+    motion::velPerAxis(internalSpeedToMPS(internalSpeed), heading, vSpeedX, vSpeedY);
 
     // update X velocity
     float residual = vSpeedX - newVelX;
-    float innovCov = newVelXUncert + MODELTRUST; // 0.05 represents unceratinty of speed guess. 0.05 is very low and indicates high certainty
-    // this represents a range of about 0.22 m/s in velocity
+    float innovCov = newVelXUncert + RECKONINGNOISE;
     float kalmanGain = newVelXUncert / innovCov;
     newVelX = newVelX + kalmanGain * residual;
     newVelXUncert = (1 - kalmanGain) * newVelXUncert; // newVelX now represents updated prediction.
 
     // update X position, reusing some variables to save memory space
     residual = ((vSpeedX * dtSec) + this->xPosition) - newPosX; // old position + (speed * dtSec) - predicted position
-    innovCov = newPosXUncert + MODELTRUST; // 0.05 once again being very low.
+    innovCov = newPosXUncert + RECKONINGNOISE;
     kalmanGain = newPosXUncert / innovCov;
     newPosX = newPosX + kalmanGain * residual;
     newPosXUncert = (1 - kalmanGain) * newPosXUncert;
 
     // update Y velocity
     residual = vSpeedY - newVelY;
-    innovCov = newVelYUncert + MODELTRUST;
+    innovCov = newVelYUncert + RECKONINGNOISE;
     kalmanGain = newVelYUncert / innovCov;
     newVelY = newVelY + kalmanGain * residual;
     newVelYUncert = (1 - kalmanGain) * newVelYUncert;
 
     // update Y position
     residual = ((vSpeedY * dtSec) + this->yPosition) - newPosY;
-    innovCov = newPosYUncert + MODELTRUST;
+    innovCov = newPosYUncert + RECKONINGNOISE;
     kalmanGain = newPosYUncert / innovCov;
     newPosY = newPosY + kalmanGain * residual;
     newPosYUncert = (1 - kalmanGain) * newPosYUncert;
@@ -179,7 +172,7 @@ void PositionTracking::updatePosition(float heading, unsigned char internalSpeed
 
 float PositionTracking::voltageToSpeed(float voltage) {
     // returns 0.235 to represent 0.235 meters per second, the approximate speed of the car as measured
-    // may need to increase some, since the car didn't go in a straight line exactly
+    // function is an incomplete placeholder
     return 0.235;
 }
 
