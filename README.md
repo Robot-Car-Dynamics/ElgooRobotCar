@@ -59,7 +59,7 @@ There are also built in test functions:
 These can be inserted to the setup() function in the ino file to insert their relevant commands into the queue.
 
 ## System Architecture
- Include the diagram here
+![Architectural Diagram](image_url "Architectural Diagram")
 
 ## Software Configuration
 A few parts of the software can be reconfigured to account for differing hardware.
