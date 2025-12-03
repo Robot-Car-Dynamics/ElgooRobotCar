@@ -83,6 +83,34 @@ The dead reckoning method also relies on a linear approximation of the speed val
 This function can be altered in PositionTracking::internalSpeedToMPS as desired to match a given car, if the actual speed differs.
 
 ## Purposes of Files
+- addLibrary directory:
+    + Contains additional files included by the compiler
+- 2DVelocity.h
+    + Contains some inline functions used by the Kalman filter to get the proportion of velocity along each axis, and to turn raw accelerometer readings into usable units.
+- ApplicationFunctionSet_xx0.cpp
+    + Contains most of the code associated with physically operating the robot, such as motor controls, LED controls, etc.
+    + Contains movement and turn handling
+    + Contains the path action queue
+    + Contains the code which monitors the API and handles requests
+    + Contains definitions of STANDARDSPEED, STANDARDKP, etc.
+- DeviceDriverSet_xxx0.cpp
+    + Contains device drivers such as the ones for the motors, and lights.
+- ElegooRobotCar.ino
+    + Contains the main function, which is loop(), and the setup() function. 
+- I2Cdev.cpp
+    + Used in reading accelerometer bits.
+- IRremote.cpp
+    + Allows the use of the IR remote that comes with the car kit. Not used in this project.
+- MEMORY_OPTIMIZATION_NOTES.txt
+    + Contains some options for attemtping to reduce memory usage. 
+    + Attempting to fit all the needed variables into the memory available was challenging in development, and you may want to use some of these suggestions if you intend to fork this project.
+- MPU6050.cpp
+    + Contains bitwise functions to read from and write to the MPU 6050. 
+    + Called from MPU6050_getdata.cpp
+- MPU6050_getdata.cpp
+    + Contains higher level functions related to accelerometer readings.
+- scalarPosition.cpp
+    + Implements a scalarized Kalman filter in 2 dimensions using integrated acceleration and dead reckoning.
 
 ## Kalman Filter
 ### Kalman Filtering Generally:
