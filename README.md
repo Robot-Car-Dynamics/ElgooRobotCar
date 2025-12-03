@@ -85,9 +85,44 @@ This function can be altered in PositionTracking::internalSpeedToMPS as desired 
 ## Purposes of Files
 
 ## Kalman Filter
+### Kalman Filtering Generally:
+Kalman filtering is a technique which uses a saved state, predicts changes in the state based on current values, then updates that prediction with an external observation of the system unrelated to the model. By doing this, it is possible to turn an unreliable model and an unreliable measurement into a more reliable estimation. 
+Kalman filtering is often used in guidance and navigation to provide state estimates.
+### Implementation:
+The Kalman filter is implemented in scalarPosition.cpp, scalarPosition.h, and 2DVelocity.h.
 
-## Movement Handling
+
+In this project, our filter uses accelerometer measurements from the MPU6050, integrated to determine velocity and position for the model, and a measured speed at a given setting multiplied by time as an external measurement.
+A heading is also derived from the MPU6050, and using trigonometry, we calculate cartesian coordinates to represent where the car is relative to its starting position in 2D space.
+### Hardware Limitations:
+We observed MPU6050 readings to range wildly as the car shakes. This causes the filter to depend more on the update stage, rather than on both parts equally. 
+The car also lacks a physical way to truly measure its own position in real time, which is why the measured speed update is used over, for example, GPS position. This is still consistent with theory, as the measured speed is external to the integrated acceleration model.
+
+
+## Pathing Handling
+Once added to the queue of PathAction structs, actions are handled by the handleAction function in the order received.
+
+For move commands, handleMoves is called, which sets the motors to move at the standard speed while continuously updating the Kalman filter.
+
+Once the Kalman filter believes that it is within a few cm of the desired location, the move command is considered complete.
+
+The car's heading will be updated with a check to the MPU 6050's gyroscope, and the function will return.
+
+For turn commands, handleTurns is called, which sets the motors for a differential turn and continues until the MPU 6050's reported heading matches the desired heading.
+
+The Kalman filter is not updated during turns to avoid confusing it.
 
 ## API
+The API has two addresses, one for receiving PathActions and another for reporting position.
+
+Move commands can be sent as POSTs to http://192.168.4.1/api/path. The GUI does this automatically, but curl commands like shown above can also be used.
+
+The car will respond to GET requests to http://192.168.4.1/api/pose with its cartesian coordinates.
 
 ## Known Limitations
+Accelerometer readings can be very noisy with the MPU 6050, so the Kalman filter puts little trust in integrated acceleration by default. This results in an outcome that trusts the dead reckoning model disproportionately.
+
+Turns can sometimes be thrown off when the car has too little traction or too much vibration.
+
+With the full project loaded onto the car, there is very little room left over for anything else. The code in this repo takes up roughly 95% of the text space on the Arduino Uno. Global variables take up a further 1389 bytes currently, leaving 659 bytes for both the stack and heap, which of course are used during function calls. If you want to add to this project, you will most likely need to remove some code.
+
